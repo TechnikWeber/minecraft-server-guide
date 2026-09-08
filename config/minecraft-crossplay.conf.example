@@ -1,0 +1,39 @@
+# Nach /etc/minecraft-guide.conf kopieren und anpassen:
+#   cp config/minecraft-crossplay.conf.example /etc/minecraft-guide.conf
+#   chmod 600 /etc/minecraft-guide.conf
+#
+# ===== ntfy (Benachrichtigungen) =====
+NTFY_URL="https://ntfy.sh"
+NTFY_TOPIC="dein-zufaelliges-topic-a8f3k2"
+
+# ===== Server =====
+MC_SERVICE="minecraft-paper"
+MC_USER="minecraft"
+MC_DIR="/home/minecraft/paper"
+PLUGINS_DIR="/home/minecraft/paper/plugins"
+MC_PORT="25565"
+MC_PORT_PROTO="tcp"
+
+# ===== Backups =====
+BACKUP_DIR="/home/minecraft/backups"
+BACKUP_KEEP_DAYS=7
+
+# ===== Wartungs-Flag =====
+MC_LOCKFILE="/run/minecraft-paper.maintenance"
+MC_LOCK_MAX_AGE_MIN=60
+
+# ===== Health-Check nach Update/Neustart =====
+MC_READY_PATTERN="Done \("
+MC_START_TIMEOUT=180
+
+# ===== Paper: bewusst an eine MC-Version gepinnt =====
+# Geyser ist immer der limitierende Faktor - siehe docs/02-crossplay.
+# Wird NICHT automatisch ueber Major-Versionen erhoeht.
+PAPER_PROJECT="paper"
+PAPER_MC_VERSION="1.21.11"
+# PaperMC verlangt einen aussagekraeftigen User-Agent mit Kontakt-URL:
+PAPER_UA="mc-guide-updater/1.0 (https://github.com/TechnikWeber/minecraft-server-guide)"
+
+# ===== Geyser / Floodgate (immer automatisch aktuell gehalten) =====
+GEYSER_URL="https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot"
+FLOODGATE_URL="https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot"
