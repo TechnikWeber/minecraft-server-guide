@@ -1,0 +1,17 @@
+[Unit]
+Description=Minecraft Paper Server (Crossplay + Plugins)
+After=network.target
+
+[Service]
+User=minecraft
+WorkingDirectory=/home/minecraft/paper
+# Faustregel fuer -Xmx: LXC-RAM minus ca. 1,5 GB fuer System + Plugins.
+# Beispiel unten fuer eine 6-GB-LXC. Bei 8 GB z.B. -Xmx6G.
+ExecStart=/usr/bin/java -Xms2G -Xmx4G -XX:+UseG1GC -jar paper.jar --nogui
+ExecStop=/bin/bash -c 'echo "stop" > /proc/$MAINPID/fd/0'
+Restart=on-failure
+RestartSec=10
+StandardInput=null
+
+[Install]
+WantedBy=multi-user.target
