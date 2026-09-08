@@ -1,0 +1,33 @@
+# Nach /etc/minecraft-guide.conf kopieren und anpassen:
+#   cp config/minecraft-bedrock.conf.example /etc/minecraft-guide.conf
+#   chmod 600 /etc/minecraft-guide.conf
+#
+# ===== ntfy (Benachrichtigungen) =====
+# Sicherheitshinweis: Wer den Topic-Namen kennt, kann mitlesen UND
+# gefaelschte Nachrichten schicken. Zufaelligen Namen waehlen, siehe
+# docs/06-wartung fuer Haertungs-Optionen (Access-Token, eigener ntfy-Server).
+NTFY_URL="https://ntfy.sh"
+NTFY_TOPIC="dein-zufaelliges-topic-a8f3k2"
+
+# ===== Server =====
+MC_SERVICE="minecraft-bedrock"
+MC_USER="minecraft"
+MC_DIR="/home/minecraft/bedrock"
+MC_PORT="19132"
+MC_PORT_PROTO="udp"
+
+# ===== Backups =====
+BACKUP_DIR="/home/minecraft/backups"
+BACKUP_KEEP_DAYS=7
+
+# ===== Wartungs-Flag (gegen Watchdog-Fehlalarm waehrend Backup/Update) =====
+MC_LOCKFILE="/run/minecraft-bedrock.maintenance"
+MC_LOCK_MAX_AGE_MIN=60
+
+# ===== Health-Check nach Update/Neustart =====
+MC_READY_PATTERN="Server started\."
+MC_START_TIMEOUT=120
+
+# ===== Mojang-API (fuer Auto-Update) =====
+MOJANG_API_URL="https://net-secondary.web.minecraft-services.net/api/v1.0/download/links"
+MOJANG_UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
