@@ -1,0 +1,15 @@
+[Unit]
+Description=Minecraft Bedrock Server
+After=network.target
+
+[Service]
+User=minecraft
+WorkingDirectory=/home/minecraft/bedrock
+ExecStart=/bin/bash -c 'LD_LIBRARY_PATH=. ./bedrock_server'
+ExecStop=/bin/kill -SIGINT $MAINPID
+Restart=on-failure
+RestartSec=10
+StandardInput=null
+
+[Install]
+WantedBy=multi-user.target
