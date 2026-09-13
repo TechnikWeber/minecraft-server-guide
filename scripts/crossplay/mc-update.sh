@@ -4,7 +4,7 @@
 #   - Geyser + Floodgate (muessen mit Bedrock-Client-Updates Schritt halten)
 # Alles andere (Paper-Major-Sprung, ViaVersion, LuckPerms/EssentialsX/
 # GriefPrevention/CoreProtect/Chunky) bleibt bewusst manuell - siehe
-# docs/06-wartung. Grund: Geyser ist immer der limitierende Faktor.
+# docs/b-crossplay, Teil 6. Grund: Geyser und die Plugins sind der limitierende Faktor.
 #
 # Ablauf: Hash-Vergleich (kein unnoetiger Neustart) -> Backup -> Update ->
 # Health-Check -> bei Fehlschlag automatischer Rollback pro Komponente.

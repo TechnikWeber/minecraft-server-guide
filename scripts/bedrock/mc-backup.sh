@@ -1,7 +1,7 @@
 #!/bin/bash
 # Taegliches Backup des Bedrock-Servers. Sichert Welt(en) + Konfiguration +
 # OP-Rechte + Allowlist - daraus laesst sich ein Server komplett wiederherstellen
-# oder auf einen anderen LXC umziehen (siehe docs/01-bedrock).
+# oder auf einen anderen LXC umziehen (siehe docs/a-bedrock, Schritt 7).
 set -u
 source /usr/local/bin/mc-common.sh
 

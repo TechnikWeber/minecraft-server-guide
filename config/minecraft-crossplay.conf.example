@@ -27,7 +27,7 @@ MC_READY_PATTERN="Done \("
 MC_START_TIMEOUT=180
 
 # ===== Paper: bewusst an eine MC-Version gepinnt =====
-# Geyser und die Plugins sind der limitierende Faktor - siehe docs/02-crossplay.
+# Geyser und die Plugins sind der limitierende Faktor - siehe docs/b-crossplay.
 # Wird NICHT automatisch ueber Major-Versionen erhoeht.
 PAPER_PROJECT="paper"
 PAPER_MC_VERSION="26.1.2"

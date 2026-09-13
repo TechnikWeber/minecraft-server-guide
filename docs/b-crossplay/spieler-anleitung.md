@@ -1,6 +1,6 @@
 # 🏰 Willkommen auf unserem Minecraft-Server!
 
-> Diese Seite ist zum **Weitergeben an die Kinder/Spieler** gedacht — passt zum [Kinderserver-Profil](../03-sicherheit-und-kinder/kinderserver-profil.md) (GriefPrevention-Claims, EssentialsX-Kit `schaufel`). Discord-taugliche Version zum Copy-Paste: [discord-format.md](discord-format.md).
+> Diese Seite ist zum **Weitergeben an die Kinder/Spieler** gedacht — passt zum [Kinderserver-Profil](README.md#kinderserver-profil) der Crossplay-Anleitung (GriefPrevention-Claims, EssentialsX-Kits `schaufel` und `start`). Discord-taugliche Version zum Copy-Paste: [spieler-anleitung-discord.md](spieler-anleitung-discord.md).
 
 Hier steht alles, was du auf dem Server machen kannst — und welche Zauberwörter (Befehle) dir helfen.
 

@@ -5,7 +5,7 @@
 # ===== ntfy (Benachrichtigungen) =====
 # Sicherheitshinweis: Wer den Topic-Namen kennt, kann mitlesen UND
 # gefaelschte Nachrichten schicken. Zufaelligen Namen waehlen, siehe
-# docs/06-wartung fuer Haertungs-Optionen (Access-Token, eigener ntfy-Server).
+# docs/a-bedrock, "ntfy absichern" (Access-Token, eigener ntfy-Server).
 NTFY_URL="https://ntfy.sh"
 NTFY_TOPIC="dein-zufaelliges-topic-a8f3k2"
 
