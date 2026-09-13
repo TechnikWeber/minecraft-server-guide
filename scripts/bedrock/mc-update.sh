@@ -1,6 +1,7 @@
 #!/bin/bash
 # Auto-Update des Bedrock-Servers ueber die Mojang-API, mit vollem Rollback-Snapshot.
-# Ablauf: neueste Version ermitteln -> Backup -> Rollback-Snapshot -> Download+Test
+# Ablauf: neueste Version ermitteln -> Download+Test (Server laeuft weiter)
+# -> Backup -> Server stoppen + Rollback-Snapshot -> Entpacken
 # -> Start & Health-Check -> bei Fehlschlag automatischer Rollback.
 set -u
 source /usr/local/bin/mc-common.sh
@@ -44,15 +45,36 @@ fi
 
 mc_log "Update von $INSTALLED_VERSION auf $LATEST_VERSION."
 
-# 2) Backup + vollstaendiger Rollback-Snapshot
+# 2) Download + Integritaet pruefen - der Server laeuft dabei weiter
+TMP_ZIP="/home/${MC_USER}/bedrock-server-new.zip"
+mc_log "Lade neue Version herunter..."
+if ! curl -fsSL --max-time 300 -A "$MOJANG_UA" -o "$TMP_ZIP" "$DOWNLOAD_URL" \
+   || ! unzip -tq "$TMP_ZIP" >/dev/null 2>&1; then
+  mc_log "Download/ZIP defekt."
+  rm -f "$TMP_ZIP"
+  mc_notify "high" "warning" "Bedrock: Update-Download fehlgeschlagen" \
+    "Download von $LATEST_VERSION fehlgeschlagen. Server laeuft unveraendert mit $INSTALLED_VERSION weiter."
+  exit 1
+fi
+
+# 3) Backup, dann Server stoppen und Rollback-Snapshot vom GESTOPPTEN Stand
+#    (eine Kopie der laufenden Welt koennte inkonsistent sein)
 if [ -x "$BACKUP_SCRIPT" ] && ! "$BACKUP_SCRIPT"; then
+  rm -f "$TMP_ZIP"
   mc_notify "high" "warning" "Bedrock: Update abgebrochen" \
     "Backup vor dem Update fehlgeschlagen - Update wurde NICHT durchgefuehrt."
   exit 1
 fi
+systemctl stop "$MC_SERVICE"
 mc_log "Erstelle Rollback-Snapshot..."
 rm -rf "$ROLLBACK_DIR"
-cp -a "$MC_DIR" "$ROLLBACK_DIR"
+if ! cp -a "$MC_DIR" "$ROLLBACK_DIR"; then
+  rm -rf "$ROLLBACK_DIR" "$TMP_ZIP"
+  systemctl start "$MC_SERVICE"
+  mc_notify "high" "warning" "Bedrock: Update abgebrochen" \
+    "Rollback-Snapshot konnte nicht angelegt werden (Speicherplatz?). Update wurde NICHT durchgefuehrt, Server laeuft weiter."
+  exit 1
+fi
 
 rollback() {
   mc_log "Rollback wird durchgefuehrt..."
@@ -63,21 +85,7 @@ rollback() {
   sleep 10
 }
 
-# 3) Download + Integritaet pruefen
-systemctl stop "$MC_SERVICE"
-TMP_ZIP="/home/${MC_USER}/bedrock-server-new.zip"
-mc_log "Lade neue Version herunter..."
-if ! curl -fsSL --max-time 300 -A "$MOJANG_UA" -o "$TMP_ZIP" "$DOWNLOAD_URL" \
-   || ! unzip -tq "$TMP_ZIP" >/dev/null 2>&1; then
-  mc_log "Download/ZIP defekt."
-  rm -f "$TMP_ZIP"
-  rollback
-  mc_notify "urgent" "rotating_light" "Bedrock: Update fehlgeschlagen" \
-    "Download von $LATEST_VERSION fehlgeschlagen. Alte Version $INSTALLED_VERSION wurde wiederhergestellt."
-  exit 1
-fi
-
-# Konfig sichern, entpacken, Konfig zurueckspielen (ueberschreibt mitgelieferte Defaults)
+# 4) Konfig sichern, entpacken, Konfig zurueckspielen (ueberschreibt mitgelieferte Defaults)
 for f in server.properties permissions.json allowlist.json; do
   [ -e "$MC_DIR/$f" ] && cp -a "$MC_DIR/$f" "/tmp/mc-$f.keep"
 done
@@ -90,7 +98,7 @@ for f in server.properties permissions.json allowlist.json; do
 done
 chown -R "$MC_USER":"$MC_USER" "$MC_DIR"
 
-# 4) Starten & verifizieren
+# 5) Starten & verifizieren
 START_TS=$(date '+%Y-%m-%d %H:%M:%S')
 systemctl start "$MC_SERVICE"
 mc_log "Warte auf '$MC_READY_PATTERN' (max ${MC_START_TIMEOUT}s)..."

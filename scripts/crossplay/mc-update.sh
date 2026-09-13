@@ -8,6 +8,7 @@
 #
 # Ablauf: Hash-Vergleich (kein unnoetiger Neustart) -> Backup -> Update ->
 # Health-Check -> bei Fehlschlag automatischer Rollback pro Komponente.
+# Es bleibt immer nur der Rollback-Ordner des letzten Updates liegen.
 set -u
 source /usr/local/bin/mc-common.sh
 
@@ -71,13 +72,21 @@ fi
 maintenance_on
 mc_log "Updates gefunden:"; echo "$NOTES"
 
+systemctl stop "$MC_SERVICE"
+# Welt-Backup im gestoppten Zustand. Schlaegt es fehl, wird NICHT aktualisiert.
+if ! MC_SKIP_SERVICE=1 /usr/local/bin/mc-crossplay-backup.sh >/dev/null 2>&1; then
+  systemctl start "$MC_SERVICE"
+  mc_log "Backup fehlgeschlagen -> Update abgebrochen."
+  mc_notify "high" "warning" "Crossplay: Update abgebrochen" \
+    "Backup vor dem Update fehlgeschlagen - Update wurde NICHT durchgefuehrt. Server laeuft unveraendert weiter.
+Pruefen: ls -lh $BACKUP_DIR"
+  exit 1
+fi
+
 mkdir -p "$ROLLBACK"
 for k in "${!NEW[@]}"; do
   [ -f "${DEST[$k]}" ] && cp -p "${DEST[$k]}" "$ROLLBACK/$(basename "${DEST[$k]}")"
 done
-
-systemctl stop "$MC_SERVICE"
-MC_SKIP_SERVICE=1 /usr/local/bin/mc-crossplay-backup.sh >/dev/null 2>&1   # Welt-Backup im gestoppten Zustand
 
 for k in "${!NEW[@]}"; do cp -f "${NEW[$k]}" "${DEST[$k]}"; done
 chown -R "$MC_USER":"$MC_USER" "$MC_DIR"
@@ -86,11 +95,13 @@ START_TS=$(date '+%Y-%m-%d %H:%M:%S')
 systemctl start "$MC_SERVICE"
 
 if wait_for_log_pattern "$MC_READY_PATTERN" "$START_TS" "$MC_START_TIMEOUT" && server_is_up; then
+  # Aeltere Rollback-Ordner aufraeumen, nur der von diesem Lauf bleibt
+  find "$MC_DIR" -maxdepth 1 -type d -name 'rollback-*' ! -path "$ROLLBACK" -exec rm -rf {} +
   mc_notify "default" "white_check_mark,arrow_up" "Crossplay: Update erfolgreich" \
     "Aktualisiert und sauber gestartet:
 ${NOTES}
 Sicherung des alten Stands: $ROLLBACK
-(Loeschbar wenn alles laeuft: rm -rf $ROLLBACK)"
+(wird beim naechsten erfolgreichen Update automatisch geloescht)"
   mc_log "Update OK."
   exit 0
 fi

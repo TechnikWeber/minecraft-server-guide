@@ -1,0 +1,11 @@
+# Log-Rotation fuer die Cron-Logs der mc-*.sh Scripts.
+# Nach /etc/logrotate.d/minecraft-guide kopieren:
+#   cp config/logrotate-minecraft-guide /etc/logrotate.d/minecraft-guide
+/var/log/mc-*.log {
+    weekly
+    rotate 8
+    compress
+    delaycompress
+    missingok
+    notifempty
+}

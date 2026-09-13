@@ -17,10 +17,13 @@ if server_is_up; then
   exit 0
 fi
 
+# Paper braucht mit vollem Plugin-Stack oft deutlich laenger als 30 s bis
+# "Done (" - deshalb aufs Log warten statt fest zu schlafen (sonst Fehlalarm).
+systemctl reset-failed "$MC_SERVICE" 2>/dev/null
+START_TS=$(date '+%Y-%m-%d %H:%M:%S')
 systemctl restart "$MC_SERVICE"
-sleep 30
 
-if server_is_up; then
+if wait_for_log_pattern "$MC_READY_PATTERN" "$START_TS" "$MC_START_TIMEOUT" && server_is_up; then
   rm -f "$STATE_DOWN"
   mc_notify "default" "arrows_counterclockwise" "Crossplay: automatisch neu gestartet" \
     "Der Server war nicht erreichbar und wurde automatisch neu gestartet. Laeuft wieder.

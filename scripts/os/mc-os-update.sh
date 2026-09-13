@@ -6,9 +6,10 @@
 # Einmalige Einrichtung (beide Distros):
 #   apt install -y unattended-upgrades
 #   systemctl disable --now apt-daily-upgrade.timer   # wir steuern das Anwenden per Cron
-# Debian braucht zusaetzlich in /etc/apt/apt.conf.d/50unattended-upgrades die
-# Zeile "${distro_id}:${distro_codename}-security" in Allowed-Origins (bei
-# Ubuntu ist das per Default schon so konfiguriert).
+# Sicherheitsupdates sind auf beiden Distros ab Werk in
+# /etc/apt/apt.conf.d/50unattended-upgrades freigegeben. Pruefen:
+#   unattended-upgrade --dry-run -d 2>&1 | grep -i 'allowed origins'
+# Die Ausgabe muss "-security" (Ubuntu) bzw. "Debian-Security" enthalten.
 set -u
 source /usr/local/bin/mc-common.sh
 

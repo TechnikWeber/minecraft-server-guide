@@ -8,7 +8,11 @@ WorkingDirectory=/home/minecraft/paper
 # Faustregel fuer -Xmx: LXC-RAM minus ca. 1,5 GB fuer System + Plugins.
 # Beispiel unten fuer eine 6-GB-LXC. Bei 8 GB z.B. -Xmx6G.
 ExecStart=/usr/bin/java -Xms2G -Xmx4G -XX:+UseG1GC -jar paper.jar --nogui
-ExecStop=/bin/bash -c 'echo "stop" > /proc/$MAINPID/fd/0'
+# Kein ExecStop: systemd schickt beim Stoppen SIGTERM, Paper speichert darauf
+# die Welt und faehrt sauber herunter. Java beendet sich dabei mit Code 143 -
+# das ist hier kein Fehler. Grosszuegiger Timeout fuers Speichern.
+SuccessExitStatus=143
+TimeoutStopSec=120
 Restart=on-failure
 RestartSec=10
 StandardInput=null
