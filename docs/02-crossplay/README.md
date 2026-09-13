@@ -98,7 +98,8 @@ Gamemode/Difficulty-Details, `force-gamemode`-Verhalten und das komplette Kinder
 ## Schritt 6 – Einmal starten, damit alle Plugins ihre Configs erzeugen
 
 ```bash
-su - minecraft && cd ~/paper
+su - minecraft
+cd ~/paper
 java -Xms2G -Xmx4G -jar paper.jar --nogui
 ```
 
@@ -113,33 +114,38 @@ nano /home/minecraft/paper/plugins/Geyser-Spigot/config.yml
 ```
 
 ```yaml
-bedrock:
-  motd:
-    primary-motd: DeinServerName
+motd:
+  primary-motd: DeinServerName
 gameplay:
   server-name: DeinServerName
 java:
   auth-type: floodgate   # <- der wichtigste Punkt
 ```
 
-> Drei MOTD-Felder beschreiben denselben Server: `motd=` in `server.properties` (Java-Liste), `bedrock.motd.primary-motd` (Bedrock-Liste), `gameplay.server-name` (Bedrock ingame) — überall denselben Namen setzen.
+> Drei MOTD-Felder beschreiben denselben Server: `motd=` in `server.properties` (Java-Liste), `motd.primary-motd` (Bedrock-Liste), `gameplay.server-name` (Bedrock ingame) — überall denselben Namen setzen.
 
 ## Schritt 8 – Floodgate Account-Linking (optional, empfohlen)
 
-Damit Java- und Bedrock-Client dieselbe Identität (Rechte, Claims, Inventar) teilen:
+Damit Java- und Bedrock-Client dieselbe Identität (Rechte, Claims, Inventar) teilen. Für die Verknüpfung auf dem eigenen Server braucht Floodgate eine Datenbank-Erweiterung — sie kommt in den Floodgate-Ordner:
 
 ```bash
-nano /home/minecraft/paper/plugins/floodgate/config.yml
+cd /home/minecraft/paper/plugins/floodgate
+wget -O floodgate-sqlite-database.jar \
+  "https://download.geysermc.org/v2/projects/floodgatedb/versions/latest/builds/latest/downloads/sqlite"
+chown minecraft:minecraft floodgate-sqlite-database.jar
+nano config.yml
 ```
 
 ```yaml
 player-link:
   enabled: true
   require-link: false
+  enable-own-linking: true   # <- ohne das gibt es /linkaccount nicht
   allowed: true
+  type: sqlite
 ```
 
-Verlinkung im Spiel: Java-Client einloggen → im Java-Chat `/linkaccount` (zeigt Code) → mit Bedrock-Client einloggen (erst als `.Name`) → im Bedrock-Chat `/linkaccount JavaName <code>`. Ohne Linking sind Java- und Bedrock-Account **zwei verschiedene Spieler** — Rechte, Claims und Homes müssten doppelt vergeben werden.
+Verlinkung im Spiel: mit dem Java-Client einloggen → im Java-Chat `/linkaccount BedrockName` (zeigt einen Code) → mit dem Bedrock-Client einloggen (erscheint als `.BedrockName`) → im Bedrock-Chat `/linkaccount JavaName Code`. Der Bedrock-Client wird danach einmal gekickt, beim nächsten Login sind beide Konten verknüpft. Ohne Linking sind Java- und Bedrock-Account **zwei verschiedene Spieler** — Rechte, Claims und Homes müssten doppelt vergeben werden.
 
 ## Schritt 9 – systemd, Firewall, Port-Forwarding
 
@@ -191,27 +197,32 @@ install -m 750 scripts/crossplay/mc-backup.sh   /usr/local/bin/mc-crossplay-back
 install -m 750 scripts/crossplay/mc-update.sh   /usr/local/bin/mc-crossplay-update.sh
 install -m 750 scripts/crossplay/mc-watchdog.sh /usr/local/bin/mc-crossplay-watchdog.sh
 install -m 750 scripts/os/mc-os-update.sh       /usr/local/bin/mc-os-update.sh
-```
-
-Testen:
-
-```bash
-/usr/local/bin/mc-crossplay-backup.sh && ls -lh /home/minecraft/backups/
-/usr/local/bin/mc-crossplay-update.sh
-/usr/local/bin/mc-crossplay-watchdog.sh; echo "Exit: $?"
-/usr/local/bin/mc-os-update.sh
+cp config/logrotate-minecraft-guide /etc/logrotate.d/minecraft-guide
 ```
 
 ### OS-Sicherheitsupdates einrichten (einmalig, beide Distros)
 
 ```bash
 apt install -y unattended-upgrades
-systemctl disable --now apt-daily-upgrade.timer   # wir steuern das Anwenden per Cron, fuer saubere ntfy-Meldungen
+systemctl disable --now apt-daily-upgrade.timer   # das Anwenden steuert mc-os-update.sh per Cron, fuer saubere ntfy-Meldungen
 ```
 
-> Debian braucht zusätzlich einen Blick in `/etc/apt/apt.conf.d/50unattended-upgrades`, ob `${distro_id}:${distro_codename}-security` in den Allowed-Origins steht (bei Ubuntu ist das Default). Details/Prüfbefehl: [docs/06-wartung](../06-wartung/).
+> Sicherheitsupdates sind auf beiden Distros ab Werk freigegeben. Prüfbefehl: [docs/06-wartung](../06-wartung/#sicherheitsupdates-prüfen).
+
+### Testen
+
+```bash
+/usr/local/bin/mc-crossplay-backup.sh && ls -lh /home/minecraft/backups/
+/usr/local/bin/mc-crossplay-update.sh
+/usr/local/bin/mc-crossplay-watchdog.sh; echo "Exit: $?"   # sollte still sein
+/usr/local/bin/mc-os-update.sh
+```
 
 ### Cronjobs
+
+```bash
+crontab -e
+```
 
 ```cron
 # Taegliches Welt-Backup um 03:30

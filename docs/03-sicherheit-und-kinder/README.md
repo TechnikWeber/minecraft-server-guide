@@ -7,7 +7,7 @@ Drei unabhängige Stufen, die sich beliebig kombinieren lassen — von „wer da
 Bestimmt, wer den Server überhaupt betreten darf. Standardmäßig **aus** (jeder mit der IP kann joinen).
 
 - **Bedrock:** `allow-list=true` in `server.properties`, Namen in `allowlist.json` eintragen.
-- **Java/Crossplay:** `white-list=true` in `server.properties`, `/whitelist add <Name>` ingame, `whitelist.json` wird von EssentialsX/Paper verwaltet.
+- **Java/Crossplay:** `white-list=true` in `server.properties`, `/whitelist add <Name>` ingame, `whitelist.json` verwaltet Paper selbst.
 
 > Sinnvoll, sobald der Server über das Internet erreichbar ist und nicht jeder Fremde reinkommen soll — unabhängig vom Gamemode.
 
@@ -31,7 +31,7 @@ Bestimmt, was ein frisch verbundener Spieler **kann**, bevor irgendjemand eingre
 
 > **Warum `force-gamemode=false` entscheidend ist:** `false` (Standard) heißt, ein einmal hochgestufter Spieler **bleibt** in seinem Modus, auch nach Reconnect/Neustart. Steht es auf `true`, wird **jeder** bei **jedem** Join auf den Standard-Modus zurückgesetzt — die individuelle Freischaltung wäre bei jedem Login wieder weg. `true` ist nur sinnvoll, wenn du willst, dass *niemand* dauerhaft im freigeschalteten Modus bleiben soll (z.B. ein reiner Event-Bauserver mit temporärem Creative für alle).
 
-Wer die Baurechte wieder entziehen will: `gamemode adventure DeinName` (bzw. Konsole ohne `/`).
+Wer die Baurechte wieder entziehen will: `/gamemode adventure DeinName` (in der Bedrock-Konsole ohne `/`).
 
 ## Stufe 3 — Schadensbegrenzung: Claims + CoreProtect
 

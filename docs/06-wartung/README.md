@@ -17,18 +17,29 @@ journalctl -u minecraft-bedrock -f --no-pager             # Live-Logs, Ctrl+C zu
 | `/usr/local/bin/mc-bedrock-backup.sh` bzw. `mc-crossplay-backup.sh` | Backup sofort erstellen |
 | `/usr/local/bin/mc-os-update.sh` | OS-Sicherheitsupdates sofort ausführen |
 
+## Sicherheitsupdates prüfen
+
+Beide Distros geben Sicherheitsupdates für `unattended-upgrades` ab Werk frei. Kontrolle:
+
+```bash
+unattended-upgrade --dry-run -d 2>&1 | grep -i 'allowed origins'
+```
+
+Die Zeile muss `-security` (Ubuntu) bzw. `Debian-Security` (Debian) enthalten. Was nachts installiert wurde, steht in `/var/log/mc-os-update.log`.
+
 ## OP-Rechte vergeben
 
 **Bedrock** — über die interaktive Konsole (Befehle **ohne** `/`):
 
 ```bash
+touch /run/minecraft-bedrock.maintenance   # Watchdog pausieren, sonst startet er den Dienst dazwischen
 systemctl stop minecraft-bedrock
 su - minecraft
 cd ~/bedrock
 LD_LIBRARY_PATH=. ./bedrock_server
 ```
 
-Nach `Server started.`: `op DeinXboxGamertag`, dann `stop`, `exit`, `systemctl start minecraft-bedrock`.
+Nach `Server started.`: `op DeinXboxGamertag`, dann `stop`, `exit`, `systemctl start minecraft-bedrock` und `rm /run/minecraft-bedrock.maintenance`.
 
 Alternativ direkt in `permissions.json` (XUID über `xboxgamertag.com` oder aus `valid_known_packs.json` nach erstem Join):
 
@@ -39,13 +50,14 @@ Alternativ direkt in `permissions.json` (XUID über `xboxgamertag.com` oder aus 
 **Crossplay/Java** — genauso über die interaktive Konsole (Befehle **mit** `/` sind ingame, **ohne** `/` in der Konsole):
 
 ```bash
+touch /run/minecraft-paper.maintenance   # Watchdog pausieren, sonst startet er den Dienst dazwischen
 systemctl stop minecraft-paper
 su - minecraft
 cd ~/paper
 java -Xms2G -Xmx4G -jar paper.jar --nogui
 ```
 
-Nach `Done (...)`: `op DeinName`, dann `stop`, `exit`, `systemctl start minecraft-paper`.
+Nach `Done (...)`: `op DeinName`, dann `stop`, `exit`, `systemctl start minecraft-paper` und `rm /run/minecraft-paper.maintenance`.
 
 > **Ohne Floodgate-Account-Linking** sind Java- und Bedrock-Account zwei verschiedene Spieler — beide einzeln opsen: `op MaxPower3309` und `op .MaxPower3309`. Beide müssen den Server vorher mindestens einmal betreten haben.
 
@@ -90,7 +102,7 @@ Volle Tabelle mit den kindgerechten Empfehlungen: [docs/03-sicherheit-und-kinder
 | **Paper-Major-Sprung** (z.B. 26.1.2 → 26.2) | wenn Geyser und alle Plugins nachziehen | 1) Prüfen, ob Geyser **und alle Plugins** (vor allem EssentialsX und CoreProtect) die Zielversion unterstützen. 2) Plugins bei Bedarf zuerst aktualisieren. 3) `PAPER_MC_VERSION` in `/etc/minecraft-guide.conf` anpassen. 4) `/usr/local/bin/mc-crossplay-update.sh` laufen lassen (holt den neuesten Build der neuen Version, mit Backup+Rollback). Achtung: Die Welt wird beim ersten Start **unumkehrbar** umgewandelt — ein Rollback der JAR hilft danach nicht mehr, nur das Backup. |
 | **ViaVersion/ViaBackwards** | gelegentlich | Aktuelle Version auf [hangar.papermc.io/ViaVersion/ViaVersion/versions](https://hangar.papermc.io/ViaVersion/ViaVersion/versions), Links in Crossplay-Anleitung Schritt 3 ersetzen. |
 | **LuckPerms/EssentialsX/CoreProtect/GriefPrevention/Chunky** | gelegentlich | Neue JAR von der jeweiligen Quelle ([plugins-und-befehle.md](../02-crossplay/plugins-und-befehle.md)) herunterladen, Server neu starten. |
-| **Ubuntu Pro / Debian ESM** | ab Support-Ende | Kostenlos für Privatnutzung aktivierbar, verlängert Sicherheitsupdates um Jahre. |
+| **Support-Ende der Distro** | nach ca. 5 Jahren | Ubuntu: **Ubuntu Pro** ist für Privatnutzung kostenlos und verlängert die Sicherheitsupdates um Jahre. Debian: Die LTS-Phase läuft automatisch über die normalen Paketquellen; danach gibt es nur noch kostenpflichtiges ELTS — rechtzeitig auf die nächste Version wechseln. |
 
 **Faustregel:** Im Alltag musst du nichts tun. Aufmerksam werden solltest du nur, wenn eine **ntfy-Meldung** kommt — die Nachricht sagt jeweils, was zu prüfen ist.
 
@@ -127,6 +139,6 @@ Siehe [docs/01-bedrock „Weitere Empfehlungen"](../01-bedrock/#weitere-empfehlu
 | `Port may be in use` beim Bedrock-Start | `pkill -f bedrock_server`, dann erneut starten |
 | Geyser stürzt mit `ExceptionInInitializerError` ab | Paper-Version zu neu für Geyser — auf die gepinnte Version zurück, bis Geyser nachzieht |
 | Bedrock-Spieler werden beim Chatten gekickt | `enforce-secure-profile=false` in `server.properties` prüfen |
-| `apt`-Befehl meldet „could not get lock" | `unattended-upgrades` läuft parallel — kurz warten und erneut versuchen, oder deaktivieren: `systemctl disable --now unattended-upgrades` |
+| `apt`-Befehl meldet „could not get lock" | Gerade läuft ein anderer apt-Vorgang (z.B. `mc-os-update.sh` oder der tägliche Paketlisten-Abgleich) — kurz warten und erneut versuchen |
 | `journalctl`-Zeile endet mit `>` | Nur abgeschnitten (Pager) — `q` zum Verlassen, oder `--no-pager` anhängen |
 | Plugin lädt nicht, Datei verdächtig | `file datei.jar` zeigt `HTML`/`ASCII text` statt `Java archive data`/`Zip archive data` → war eine Fehlerseite, Link neu kopieren |

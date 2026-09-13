@@ -35,13 +35,14 @@ fi
 ITEMS=()
 for f in "$LEVEL" "${LEVEL}_nether" "${LEVEL}_the_end" \
          server.properties whitelist.json ops.json bukkit.yml spigot.yml config \
-         plugins/Geyser-Spigot/config.yml plugins/floodgate/config.yml \
+         plugins/Geyser-Spigot/config.yml plugins/floodgate \
          plugins/LuckPerms plugins/GriefPrevention plugins/CoreProtect \
          plugins/Essentials plugins/Chunky; do
   [ -e "$MC_DIR/$f" ] && ITEMS+=("$f")
 done
 
-tar -czf "$BACKUP_FILE" -C "$MC_DIR" "${ITEMS[@]}" 2>/dev/null
+# JARs (z.B. die Floodgate-Datenbank-Erweiterung) sind jederzeit neu ladbar
+tar --exclude='*.jar' -czf "$BACKUP_FILE" -C "$MC_DIR" "${ITEMS[@]}" 2>/dev/null
 RC=$?
 
 [ "$WAS_ACTIVE" = true ] && systemctl start "$MC_SERVICE"

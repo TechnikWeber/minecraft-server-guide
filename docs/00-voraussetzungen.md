@@ -48,7 +48,7 @@ apt update && apt upgrade -y
 
 | Paket | Wofür | Ubuntu 24.04 | Debian 13 |
 |---|---|---|---|
-| `curl`, `wget`, `unzip`, `screen`, `ufw`, `jq` | Downloads, Firewall, JSON-Auswertung für Auto-Update | `apt install -y curl wget unzip screen ufw jq` | identisch |
+| `curl`, `wget`, `unzip`, `screen`, `ufw`, `jq`, `file`, `logrotate` | Downloads, Firewall, JSON-Auswertung für Auto-Update, JAR-Prüfung, Log-Rotation | `apt install -y curl wget unzip screen ufw jq file logrotate` | identisch |
 | `ca-certificates`, `gnupg` | für das Adoptium-Java-Repo (nur Crossplay) | `apt install -y ca-certificates gnupg` | identisch |
 | Bedrock-Laufzeit-Libs | vom Bedrock-Server benötigt | `apt install -y libcurl4t64 libssl3t64` | `apt install -y libcurl4 libssl3` |
 

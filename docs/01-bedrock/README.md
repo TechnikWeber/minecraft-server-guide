@@ -23,21 +23,26 @@ echo "1.26.14.1" > ~/bedrock/.installed_version   # wird vom Auto-Update-Script 
 
 ## Schritt 1b – (Optional) Bestehende Welt von einem alten Server übertragen
 
-Ein Backup-Tarball (siehe Schritt 5) eignet sich perfekt als Transportmittel, weil er Welt + Konfiguration + OP-Rechte + Allowlist in einer Datei enthält:
+Ein Backup-Tarball (siehe Schritt 6) eignet sich perfekt als Transportmittel, weil er Welt + Konfiguration + OP-Rechte + Allowlist in einer Datei enthält:
 
 ```bash
 # Auf dem ALTEN Server:
 /usr/local/bin/mc-bedrock-backup.sh
+ls /home/minecraft/backups/   # Dateinamen des neuesten Backups notieren
 
-# Kopieren (vom alten Server aus):
-scp /home/minecraft/backups/bedrock-backup-*.tar.gz minecraft@<NEUE-LXC-IP>:/home/minecraft/
+# Kopieren - auf dem PROXMOX-HOST, wenn beide LXC dort liegen (Standardfall):
+pct pull <ALTE-CTID> /home/minecraft/backups/bedrock-backup-DATUM.tar.gz /tmp/bedrock-backup.tar.gz
+pct push <NEUE-CTID> /tmp/bedrock-backup.tar.gz /root/bedrock-backup.tar.gz
+rm /tmp/bedrock-backup.tar.gz
 
-# Auf dem NEUEN Server (als root):
+# Auf dem NEUEN Server (als root - nach Schritt 1 also erst exit):
 systemctl stop minecraft-bedrock 2>/dev/null
-tar -xzf /home/minecraft/bedrock-backup-*.tar.gz -C /home/minecraft/bedrock
+tar -xzf /root/bedrock-backup.tar.gz -C /home/minecraft/bedrock
 chown -R minecraft:minecraft /home/minecraft/bedrock
-rm /home/minecraft/bedrock-backup-*.tar.gz
+rm /root/bedrock-backup.tar.gz
 ```
+
+Liegt der alte Server nicht auf demselben Proxmox-Host: per `scp` mit einem Benutzer übertragen, der sich per SSH anmelden darf — `minecraft` hat kein Passwort und geht dafür nicht.
 
 > **Wichtig:** `level-name=` in `server.properties` muss **exakt** auf den Ordnernamen unter `worlds/` zeigen. Ein älteres Weltformat wird beim ersten Start automatisch (und unumkehrbar) aktualisiert — Original-Backup deshalb aufheben, bis alles läuft. Inventare/Fortschritt hängen an der Xbox-Identität der Spieler, nicht am Server — bleiben also erhalten.
 
@@ -90,7 +95,7 @@ ufw allow 19132/udp     # Bedrock
 ufw enable
 ```
 
-Router: UDP, externer Port 19132 → interner Port 19132 → LXC-IP (`ip a | grep inet`). Der LXC braucht dafür eine **feste IP** (siehe [docs/06-wartung](../06-wartung/)).
+Router: UDP, externer Port 19132 → interner Port 19132 → LXC-IP (`ip a | grep inet`). Der LXC braucht dafür eine **feste IP** (siehe [Weitere Empfehlungen](#weitere-empfehlungen)).
 
 ## Schritt 6 – Backup, ntfy, Auto-Update, Watchdog
 
@@ -111,6 +116,15 @@ install -m 750 scripts/common/mc-common.sh   /usr/local/bin/mc-common.sh
 install -m 750 scripts/bedrock/mc-backup.sh   /usr/local/bin/mc-bedrock-backup.sh
 install -m 750 scripts/bedrock/mc-update.sh   /usr/local/bin/mc-bedrock-update.sh
 install -m 750 scripts/bedrock/mc-watchdog.sh /usr/local/bin/mc-bedrock-watchdog.sh
+install -m 750 scripts/os/mc-os-update.sh     /usr/local/bin/mc-os-update.sh
+cp config/logrotate-minecraft-guide /etc/logrotate.d/minecraft-guide
+```
+
+OS-Sicherheitsupdates einrichten (einmalig):
+
+```bash
+apt install -y unattended-upgrades
+systemctl disable --now apt-daily-upgrade.timer   # das Anwenden steuert mc-os-update.sh per Cron, fuer saubere ntfy-Meldungen
 ```
 
 Testen:
@@ -119,6 +133,7 @@ Testen:
 /usr/local/bin/mc-bedrock-backup.sh && ls -lh /home/minecraft/backups/
 /usr/local/bin/mc-bedrock-update.sh
 /usr/local/bin/mc-bedrock-watchdog.sh; echo "Exit: $?"   # sollte still sein
+/usr/local/bin/mc-os-update.sh
 ```
 
 ntfy-App (iOS/Android) installieren und dein `NTFY_TOPIC` abonnieren.
@@ -136,14 +151,14 @@ crontab -e
 # Tägliches Backup um 03:00 Uhr
 0 3 * * * /usr/local/bin/mc-bedrock-backup.sh >> /var/log/mc-backup.log 2>&1
 
+# OS-Sicherheitsupdates um 04:00 Uhr
+0 4 * * * /usr/local/bin/mc-os-update.sh >> /var/log/mc-os-update.log 2>&1
+
 # Tägliches Update (Bedrock-Version) um 04:30 Uhr
 30 4 * * * /usr/local/bin/mc-bedrock-update.sh >> /var/log/mc-update.log 2>&1
 ```
 
-Für **OS-Sicherheitsupdates** siehe `scripts/os/mc-os-update.sh` — für beide Wege identisch, Details in [docs/02-crossplay](../02-crossplay/#os-sicherheitsupdates), Cron-Zeile gilt genauso hier.
-
 > **Wie viele Backups bleiben?** `BACKUP_KEEP_DAYS=7` in der Config — alles Ältere wird gelöscht. Anpassbar.
-> **Hinweis zu `unattended-upgrades`:** Kann sich mit dem `apt`-Teil des Update-Scripts überschneiden ("could not get lock"). Bei Bedarf deaktivieren: `systemctl disable --now unattended-upgrades`.
 
 ## Weitere Empfehlungen
 
@@ -155,6 +170,6 @@ Für **OS-Sicherheitsupdates** siehe `scripts/os/mc-os-update.sh` — für beide
 6. **Off-Site-Backup**: Backups liegen sonst nur auf demselben LXC. Per `rsync`/`rclone` nachts aufs NAS oder in die Cloud kopieren.
 7. **Allowlist aktivieren**, wenn der Server aus dem Internet erreichbar ist — siehe [Sicherheits-Stufen](../03-sicherheit-und-kinder/).
 8. **RAM-Schonung bei kleinem LXC**: `view-distance` (z.B. 8) und `tick-distance` (z.B. 4) in `server.properties` reduzieren.
-9. **Konsolen-Clients (Xbox/PlayStation/Switch)** können keinen eigenen Server-IP eintragen — nur Handy/Tablet/Windows. Vorher einplanen, falls die Familie auf Konsole spielt.
+9. **Konsolen-Clients (Xbox/PlayStation/Switch)** können keine eigene Server-IP eintragen — nur Handy/Tablet/Windows. Vorher einplanen, falls die Familie auf Konsole spielt.
 
 Weiter: **[Sicherheits-Stufen & Kinderserver-Profil](../03-sicherheit-und-kinder/)** · **[Wartung & Troubleshooting](../06-wartung/)**

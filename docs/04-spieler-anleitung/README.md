@@ -10,7 +10,7 @@ Hier steht alles, was du auf dem Server machen kannst — und welche Zauberwört
 
 ## 🛡️ Das Wichtigste: Schütze dein Haus mit der goldenen Schaufel!
 
-Auf dem Server kann jeder überall bauen. Damit **niemand dein Haus kaputt machen kann**, schützt du es mit der **goldenen Schaufel**:
+Wer bauen darf, kann überall bauen. Damit **niemand dein Haus kaputt machen kann**, schützt du es mit der **goldenen Schaufel**:
 
 1. **Nimm die goldene Schaufel in die Hand.** Verloren? `/kit schaufel` gibt dir eine neue.
 2. **Geh zu einer Ecke deines Grundstücks.**
@@ -63,7 +63,7 @@ Alles andere baust und sammelst du selbst — das ist ja das Spannende! Schaufel
 
 - 🌞 Es ist immer Tag/Wetter klar (je nachdem, was der Server-Chef eingestellt hat) — keine Dunkelheit.
 - 😊 Keine Monster — du kannst in Ruhe bauen.
-- 💥 TNT geht nicht kaputt und macht keinen Schaden.
+- 💥 TNT explodiert nicht.
 - 💀 Wenn du mal stirbst: kein Grund zur Sorge, du bist sofort wieder da.
 - 🧱 Dein Land ist sicher, sobald du es mit der goldenen Schaufel geschützt hast.
 
@@ -74,6 +74,7 @@ Alles andere baust und sammelst du selbst — das ist ja das Spannende! Schaufel
 ## ❓ Hilfe, etwas klappt nicht!
 
 - **„Du darfst hier nicht bauen":** Du stehst auf dem Land von jemand anderem (oder am Treffpunkt). Geh ein Stück weiter weg.
+- **Du kannst gar nichts abbauen?** Dann bist du noch nicht freigeschaltet — frag den Server-Chef!
 - **Befehl geht nicht?** Achte auf den Schrägstrich `/` am Anfang und schreib den Namen genau richtig.
 - **Immer noch ein Problem?** Frag einen Erwachsenen / den Server-Chef!
 

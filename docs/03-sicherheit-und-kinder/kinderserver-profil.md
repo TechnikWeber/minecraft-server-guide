@@ -72,9 +72,12 @@ kits:
     - stone_shovel 1
     - stone_sword 1
     - golden_shovel 1
-    - bed 1
+    - red_bed 1
     - crafting_table 1
+    - oak_log 8
+    - oak_planks 16
     - bread 8
+    - apple 4
     - torch 16
 ```
 

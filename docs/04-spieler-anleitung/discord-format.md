@@ -21,7 +21,7 @@ Beispiel: `/spawn` ✨
 
 # 🛡️ Schütze dein Haus mit der goldenen Schaufel!
 
-Jeder kann überall bauen. Damit **niemand dein Haus kaputt macht**, schützt du es mit der **goldenen Schaufel**. So geht's:
+Wer bauen darf, kann überall bauen. Damit **niemand dein Haus kaputt macht**, schützt du es mit der **goldenen Schaufel**. So geht's:
 
 **1.** Nimm die **goldene Schaufel** in die Hand. Verloren? Tippe `/kit schaufel`.
 
@@ -89,7 +89,7 @@ Alles andere baust und sammelst du selbst! Schaufel verloren? `/kit schaufel` �
 
 🌞 **Immer Tag** — keine Dunkelheit
 😊 **Keine Monster** — niemand greift dich an
-💥 **TNT macht keinen Schaden**
+💥 **TNT explodiert nicht**
 💀 **Wenn du stirbst**, bist du sofort wieder da — kein Grund zur Sorge!
 🧱 **Dein Land ist sicher**, sobald du es geschützt hast
 
@@ -102,6 +102,7 @@ Alles andere baust und sammelst du selbst! Schaufel verloren? `/kit schaufel` �
 # ❓ Hilfe, etwas klappt nicht!
 
 - **„Du darfst hier nicht bauen":** Du stehst auf fremdem Land. Geh weiter weg.
+- **Du kannst gar nichts abbauen?** Dann bist du noch nicht freigeschaltet — frag den Server-Chef!
 - **Befehl geht nicht?** Achte auf den Schrägstrich `/` und den genauen Namen.
 - **Immer noch ein Problem?** Frag einen Erwachsenen!
 
