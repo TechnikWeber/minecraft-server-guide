@@ -17,7 +17,7 @@ Debian- und Ubuntu-Unterschiede werden **nur dort** erklärt, wo sie wirklich ex
 
 ```
 docs/
-  00-voraussetzungen.md          Proxmox-LXC-Sizing, Zeitzone, Basis-Pakete (beide Wege, beide Distros)
+  00-voraussetzungen.md          Proxmox-LXC-Sizing, Zeitzone, Basis-Pakete, Repo klonen (beide Wege, beide Distros)
   01-bedrock/                    Kompletter Bedrock-only-Weg
   02-crossplay/                  Kompletter Crossplay-Weg (Paper/Geyser/Floodgate/Plugins)
   03-sicherheit-und-kinder/      Sicherheits-Stufen (Whitelist/Gamemode/Claims) + konkretes Kinderserver-Profil

@@ -2,7 +2,7 @@
 
 PaperMC 1.21.11 + Geyser + Floodgate + ViaVersion/ViaBackwards + LuckPerms · Vault · EssentialsX · CoreProtect · GriefPrevention · Chunky.
 
-Voraussetzungen zuerst: **[docs/00-voraussetzungen.md](../00-voraussetzungen.md)** (Sizing, Java 25, Benutzer `minecraft`).
+Voraussetzungen zuerst: **[docs/00-voraussetzungen.md](../00-voraussetzungen.md)** (Sizing, Repo klonen, Java 25, Benutzer `minecraft`).
 
 > **Die wichtigste Regel dieses Wegs: Geyser ist immer der limitierende Faktor.** Wir nutzen Paper **1.21.11**, nicht die neueste Version — Geyser muss eine Paper-Version erst unterstützen, bevor wir hochziehen. Reihenfolge bei jedem größeren Sprung: **erst prüfen, ob Geyser die Zielversion kann, dann Paper.** Java-Clients mit neueren Versionen können sich trotzdem verbinden — dafür installieren wir ViaVersion + ViaBackwards.
 
@@ -143,6 +143,7 @@ Verlinkung im Spiel: Java-Client einloggen → im Java-Chat `/linkaccount` (zeig
 ## Schritt 9 – systemd, Firewall, Port-Forwarding
 
 ```bash
+cd /opt/minecraft-server-guide
 cp systemd/minecraft-paper.service /etc/systemd/system/minecraft-paper.service
 nano /etc/systemd/system/minecraft-paper.service   # -Xmx an dein LXC-RAM anpassen
 systemctl daemon-reload
@@ -183,6 +184,7 @@ Ingame als OP (siehe [docs/06-wartung](../06-wartung/) für OP vergeben):
 ## Schritt 11 – ntfy, zentrale Config, Backup/Update/Watchdog, OS-Updates
 
 ```bash
+cd /opt/minecraft-server-guide
 cp config/minecraft-crossplay.conf.example /etc/minecraft-guide.conf
 nano /etc/minecraft-guide.conf   # NTFY_TOPIC auf einen eigenen, zufälligen Namen setzen!
 chmod 600 /etc/minecraft-guide.conf

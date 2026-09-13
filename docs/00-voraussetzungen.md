@@ -54,6 +54,17 @@ apt update && apt upgrade -y
 
 > **Warum unterschiedliche Namen bei den Laufzeit-Libs?** Ubuntu 24.04 hat im Zuge der 64-Bit-`time_t`-Umstellung einige Bibliotheken umbenannt (`libcurl4t64`, `libssl3t64`). Debian nutzt weiterhin die klassischen Namen (`libcurl4`, `libssl3`). Meldet `apt` „Paket nicht gefunden", einfach die Variante ohne `t64` probieren — das kann sich mit neueren Ubuntu-Punktversionen wieder ändern.
 
+## Schritt 2 – Dieses Repo auf den Server holen
+
+Scripts, systemd-Units und Config-Vorlagen kommen direkt aus diesem Repo. Alle Anleitungen gehen davon aus, dass es unter `/opt/minecraft-server-guide` liegt:
+
+```bash
+apt install -y git
+git clone https://github.com/TechnikWeber/minecraft-server-guide.git /opt/minecraft-server-guide
+```
+
+> **Später aktualisieren:** `cd /opt/minecraft-server-guide && git pull`, danach die `install`-Zeilen aus [Bedrock Schritt 6](01-bedrock/) bzw. [Crossplay Schritt 11](02-crossplay/) erneut ausführen — erst dann landen neue Script-Versionen in `/usr/local/bin`.
+
 ## Java installieren (nur für Crossplay nötig)
 
 Paper 1.21.11 braucht **Java 25**. Weder Ubuntu 24.04 noch Debian 13 haben das im Standard-Repository — daher über das Adoptium-Repository (Eclipse Temurin). Der folgende Block ist **auf beiden Distros identisch**, weil er den Codename automatisch ausliest:

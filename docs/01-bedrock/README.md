@@ -1,6 +1,6 @@
 # Bedrock-only-Server (Debian/Ubuntu, Proxmox LXC)
 
-Voraussetzungen zuerst erledigen: **[docs/00-voraussetzungen.md](../00-voraussetzungen.md)** (Sizing, Zeitzone, Pakete, Benutzer `minecraft`).
+Voraussetzungen zuerst erledigen: **[docs/00-voraussetzungen.md](../00-voraussetzungen.md)** (Sizing, Zeitzone, Pakete, Repo klonen, Benutzer `minecraft`).
 
 ## Schritt 1 – Server herunterladen & entpacken
 
@@ -73,6 +73,7 @@ Für das komplette Kinderserver-Profil (inkl. Freischaltung durch OP, Claims, Co
 ## Schritt 4 – systemd-Service
 
 ```bash
+cd /opt/minecraft-server-guide
 cp systemd/minecraft-bedrock.service /etc/systemd/system/minecraft-bedrock.service
 systemctl daemon-reload
 systemctl enable --now minecraft-bedrock
@@ -96,6 +97,7 @@ Router: UDP, externer Port 19132 → interner Port 19132 → LXC-IP (`ip a | gre
 Zentrale Config anlegen:
 
 ```bash
+cd /opt/minecraft-server-guide
 cp config/minecraft-bedrock.conf.example /etc/minecraft-guide.conf
 nano /etc/minecraft-guide.conf   # NTFY_TOPIC auf einen eigenen, zufälligen Namen setzen!
 chmod 600 /etc/minecraft-guide.conf
@@ -104,6 +106,7 @@ chmod 600 /etc/minecraft-guide.conf
 Scripts installieren:
 
 ```bash
+cd /opt/minecraft-server-guide
 install -m 750 scripts/common/mc-common.sh   /usr/local/bin/mc-common.sh
 install -m 750 scripts/bedrock/mc-backup.sh   /usr/local/bin/mc-bedrock-backup.sh
 install -m 750 scripts/bedrock/mc-update.sh   /usr/local/bin/mc-bedrock-update.sh
