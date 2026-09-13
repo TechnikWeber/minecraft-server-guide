@@ -66,7 +66,7 @@ Crossplay (Weltname = `level-name` in `server.properties`, Standard `world`):
 ```bash
 systemctl stop minecraft-paper
 cd /home/minecraft/paper
-rm -rf world world_nether world_the_end
+rm -rf world   # enthält ab Paper 26.1 auch Nether und End
 systemctl start minecraft-paper
 ```
 
@@ -87,7 +87,7 @@ Volle Tabelle mit den kindgerechten Empfehlungen: [docs/03-sicherheit-und-kinder
 | **Distro-LTS-Wechsel** (z.B. Ubuntu 24.04→26.04, oder Debian 13→14) | alle 2–3 Jahre | Bewusst und mit Proxmox-Snapshot vorher (`pct snapshot <CTID> vor-upgrade`); bei Ubuntu über `do-release-upgrade`, bei Debian klassisch über die `sources.list` auf den neuen Codenamen. |
 | **Proxmox-Host-Updates** | gelegentlich | Laufen auf dem Host, nicht im LXC. |
 | **Kernel** | – | Im LXC gibt es keinen eigenen Kernel (kommt vom Host) — keine Kernel-Updates nötig. |
-| **Paper-Major-Sprung** (z.B. 1.21.11 → 1.21.12/26.x) | wenn Geyser nachzieht | 1) Prüfen, ob Geyser die Zielversion schon unterstützt (Geyser-Discord/GitHub). 2) `PAPER_MC_VERSION` in `/etc/minecraft-guide.conf` anpassen. 3) `/usr/local/bin/mc-crossplay-update.sh` laufen lassen (holt den neuesten Build der neuen Version, mit Backup+Rollback). |
+| **Paper-Major-Sprung** (z.B. 26.1.2 → 26.2) | wenn Geyser und alle Plugins nachziehen | 1) Prüfen, ob Geyser **und alle Plugins** (vor allem EssentialsX und CoreProtect) die Zielversion unterstützen. 2) Plugins bei Bedarf zuerst aktualisieren. 3) `PAPER_MC_VERSION` in `/etc/minecraft-guide.conf` anpassen. 4) `/usr/local/bin/mc-crossplay-update.sh` laufen lassen (holt den neuesten Build der neuen Version, mit Backup+Rollback). Achtung: Die Welt wird beim ersten Start **unumkehrbar** umgewandelt — ein Rollback der JAR hilft danach nicht mehr, nur das Backup. |
 | **ViaVersion/ViaBackwards** | gelegentlich | Aktuelle Version auf [hangar.papermc.io/ViaVersion/ViaVersion/versions](https://hangar.papermc.io/ViaVersion/ViaVersion/versions), Links in Crossplay-Anleitung Schritt 3 ersetzen. |
 | **LuckPerms/EssentialsX/CoreProtect/GriefPrevention/Chunky** | gelegentlich | Neue JAR von der jeweiligen Quelle ([plugins-und-befehle.md](../02-crossplay/plugins-und-befehle.md)) herunterladen, Server neu starten. |
 | **Ubuntu Pro / Debian ESM** | ab Support-Ende | Kostenlos für Privatnutzung aktivierbar, verlängert Sicherheitsupdates um Jahre. |
@@ -129,4 +129,4 @@ Siehe [docs/01-bedrock „Weitere Empfehlungen"](../01-bedrock/#weitere-empfehlu
 | Bedrock-Spieler werden beim Chatten gekickt | `enforce-secure-profile=false` in `server.properties` prüfen |
 | `apt`-Befehl meldet „could not get lock" | `unattended-upgrades` läuft parallel — kurz warten und erneut versuchen, oder deaktivieren: `systemctl disable --now unattended-upgrades` |
 | `journalctl`-Zeile endet mit `>` | Nur abgeschnitten (Pager) — `q` zum Verlassen, oder `--no-pager` anhängen |
-| Downloadete Plugin-Datei ist nur wenige KB groß | War eine Fehlerseite statt der JAR — `file datei.jar` prüfen, Link neu kopieren |
+| Plugin lädt nicht, Datei verdächtig | `file datei.jar` zeigt `HTML`/`ASCII text` statt `Java archive data`/`Zip archive data` → war eine Fehlerseite, Link neu kopieren |

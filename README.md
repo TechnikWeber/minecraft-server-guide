@@ -41,4 +41,4 @@ Ihr wollt direkt den kindgerechten Weg? → **[docs/03-sicherheit-und-kinder/kin
 
 ## Stand & Versionen
 
-Diese Anleitung ist an konkreten Versionen (Paper, Geyser, Java) orientiert, weil **Geyser immer der limitierende Faktor** ist — nie blind auf die neueste Paper-Version springen, bevor Geyser sie unterstützt. Details dazu in [docs/02-crossplay](docs/02-crossplay/).
+Diese Anleitung ist an konkreten Versionen (Paper, Geyser, Plugins, Java) orientiert, weil **Geyser und die Plugins der limitierende Faktor** sind — nie blind auf die neueste Paper-Version springen, bevor Geyser und alle Plugins sie unterstützen. Aktuell: **Paper 26.1.2 mit Java 25** (Stand September 2026). Details dazu in [docs/02-crossplay](docs/02-crossplay/).

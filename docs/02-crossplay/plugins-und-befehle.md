@@ -17,18 +17,18 @@ Alle hier genannten Plugins sind **serverseitig** — sie funktionieren automati
 
 ## Download-Quellen
 
-Plugin-Versionen ändern sich oft — die häufigste Fehlerquelle sind veraltete Direkt-Links. Immer auf der offiziellen Seite die **für 1.21.11 passende Version** wählen:
+Plugin-Versionen ändern sich oft — die häufigste Fehlerquelle sind veraltete Direkt-Links. Immer auf der offiziellen Seite die **für 26.1.2 passende Version** wählen. Die in der Hauptanleitung verlinkten Versionen sind geprüft (Stand September 2026):
 
 | Plugin | Quelle |
 |---|---|
 | LuckPerms | [luckperms.net/download](https://luckperms.net/download) (Variante **Bukkit**) |
-| Vault | [github.com/MilkBowl/Vault/releases](https://github.com/MilkBowl/Vault/releases) (`Vault.jar`) |
+| Vault | [github.com/MilkBowl/Vault/releases](https://github.com/MilkBowl/Vault/releases) (`Vault.jar`) — letztes Release 2020; bei Problemen ist [VaultUnlocked](https://modrinth.com/plugin/vaultunlocked) der gepflegte Nachfolger |
 | EssentialsX | [essentialsx.net/downloads.html](https://essentialsx.net/downloads.html) — Module `EssentialsX`, `EssentialsXSpawn`, `EssentialsXChat` |
-| CoreProtect | [modrinth.com/plugin/coreprotect](https://modrinth.com/plugin/coreprotect/versions) — Version für 1.21.11 |
+| CoreProtect | [modrinth.com/plugin/coreprotect](https://modrinth.com/plugin/coreprotect/versions) — Version für 26.1.2 |
 | GriefPrevention | [github.com/TechFortress/GriefPrevention/releases](https://github.com/TechFortress/GriefPrevention/releases) (`GriefPrevention.jar`) |
 | Chunky | [hangar.papermc.io/pop4959/Chunky](https://hangar.papermc.io/pop4959/Chunky) bzw. [modrinth.com/plugin/chunky](https://modrinth.com/plugin/chunky) — Plattform **Paper** |
 
-Downloads immer prüfen: `file ~/paper/plugins/*.jar` muss `Java archive data (JAR)` zeigen, nicht `ASCII text`/`HTML` (= Fehlerseite).
+Downloads immer prüfen: `file ~/paper/plugins/*.jar` muss `Java archive data (JAR)` oder `Zip archive data` zeigen, nicht `ASCII text`/`HTML` (= Fehlerseite).
 
 > **CoreProtect-Hinweis:** Legt beim ersten Start eine SQLite-Datenbank an (`plugins/CoreProtect/`), die mit der Zeit wächst und im Backup enthalten ist. Für einen privaten Server reicht SQLite locker.
 

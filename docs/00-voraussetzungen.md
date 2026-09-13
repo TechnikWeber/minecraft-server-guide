@@ -67,7 +67,7 @@ git clone https://github.com/TechnikWeber/minecraft-server-guide.git /opt/minecr
 
 ## Java installieren (nur für Crossplay nötig)
 
-Paper 1.21.11 braucht **Java 25**. Weder Ubuntu 24.04 noch Debian 13 haben das im Standard-Repository — daher über das Adoptium-Repository (Eclipse Temurin). Der folgende Block ist **auf beiden Distros identisch**, weil er den Codename automatisch ausliest:
+Paper 26.1.2 braucht **Java 25** (Pflicht ab Minecraft 26.1). Weder Ubuntu 24.04 noch Debian 13 haben das im Standard-Repository — daher über das Adoptium-Repository (Eclipse Temurin). Der folgende Block ist **auf beiden Distros identisch**, weil er den Codename automatisch ausliest:
 
 ```bash
 wget -qO- https://packages.adoptium.net/artifactory/api/gpg/key/public | \

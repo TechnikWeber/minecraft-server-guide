@@ -22,7 +22,7 @@ Ein Kind darf jetzt bauen: als OP (Konsole ohne `/` bei Bedrock, ingame mit `/` 
 gamemode creative NameDesKindes
 ```
 
-Wieder zurück auf „nur anschauen": `gamemode adventure NameDesKindes`. Wer lieber das „echte" Überleben mag statt Creative: `gamemode survival NameDesKindes` + `/gamerule keepInventory true` (siehe unten), damit ein seltener Tod nicht alle Sachen kostet.
+Wieder zurück auf „nur anschauen": `gamemode adventure NameDesKindes`. Wer lieber das „echte" Überleben mag statt Creative: `gamemode survival NameDesKindes` + Gamerule „Items bleiben beim Tod erhalten“ (siehe unten), damit ein seltener Tod nicht alle Sachen kostet.
 
 ## Schutz (nur Crossplay-Weg — GriefPrevention)
 
@@ -36,17 +36,19 @@ Bedrock-only hat kein Plugin-System, also keine Claims — dort trägt allein di
 
 `difficulty=peaceful` verhindert schon Monster und Hunger. Optional zusätzlich, für noch mehr Ruhe:
 
-| Befehl | Wirkung |
-|---|---|
-| `/gamerule dodaylightcycle false` + `/time set day` | Immer Tag |
-| `/gamerule doweathercycle false` + `/weather clear` | Immer klares Wetter |
-| `/gamerule domobspawning false` | Keine Tiere/Monster spawnen |
-| `/gamerule mobgriefing false` | Mobs verändern keine Blöcke |
-| `/gamerule pvp false` | Kinder können sich nicht gegenseitig verletzen |
-| `/gamerule falldamage false` · `/gamerule firedamage false` | Kein Fall-/Feuerschaden |
-| `/gamerule tntexplodes false` | TNT explodiert nicht |
-| `/gamerule keepinventory true` | Items bleiben beim Tod erhalten (nur relevant, falls jemand in Survival spielt) |
-| `/gamerule showcoordinates true` | Koordinaten oben links anzeigen — hilft Kindern, sich zu orientieren |
+| Wirkung | Crossplay / Java (ab 1.21.11) | Bedrock |
+|---|---|---|
+| Immer Tag | `/gamerule advance_time false` + `/time set day` | `/gamerule dodaylightcycle false` + `/time set day` |
+| Immer klares Wetter | `/gamerule advance_weather false` + `/weather clear` | `/gamerule doweathercycle false` + `/weather clear` |
+| Keine Tiere/Monster spawnen | `/gamerule spawn_mobs false` | `/gamerule domobspawning false` |
+| Mobs verändern keine Blöcke | `/gamerule mob_griefing false` | `/gamerule mobgriefing false` |
+| Kinder können sich nicht gegenseitig verletzen | `/gamerule pvp false` | `/gamerule pvp false` |
+| Kein Fall-/Feuerschaden | `/gamerule fall_damage false` · `/gamerule fire_damage false` | `/gamerule falldamage false` · `/gamerule firedamage false` |
+| TNT explodiert nicht | `/gamerule tnt_explodes false` | `/gamerule tntexplodes false` |
+| Items bleiben beim Tod erhalten (nur relevant in Survival) | `/gamerule keep_inventory true` | `/gamerule keepinventory true` |
+| Koordinaten anzeigen — hilft Kindern bei der Orientierung | – (Java-Spieler sehen sie mit F3) | `/gamerule showcoordinates true` |
+
+> **Java hat die Gamerules mit 1.21.11 umbenannt** (snake_case statt camelCase, z.B. `doDaylightCycle` → `advance_time`). Die alten Namen funktionieren auf Paper 26.1.2 nicht mehr. Im Zweifel `/gamerule ` tippen und die Tab-Vervollständigung zeigt die gültigen Namen.
 
 ## Chunky (Crossplay-Weg)
 

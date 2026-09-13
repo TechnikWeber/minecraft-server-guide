@@ -1,21 +1,21 @@
 # Crossplay-Server: Java + Bedrock + Plugins (Debian/Ubuntu, Proxmox LXC)
 
-PaperMC 1.21.11 + Geyser + Floodgate + ViaVersion/ViaBackwards + LuckPerms · Vault · EssentialsX · CoreProtect · GriefPrevention · Chunky.
+PaperMC 26.1.2 + Geyser + Floodgate + ViaVersion/ViaBackwards + LuckPerms · Vault · EssentialsX · CoreProtect · GriefPrevention · Chunky.
 
 Voraussetzungen zuerst: **[docs/00-voraussetzungen.md](../00-voraussetzungen.md)** (Sizing, Repo klonen, Java 25, Benutzer `minecraft`).
 
-> **Die wichtigste Regel dieses Wegs: Geyser ist immer der limitierende Faktor.** Wir nutzen Paper **1.21.11**, nicht die neueste Version — Geyser muss eine Paper-Version erst unterstützen, bevor wir hochziehen. Reihenfolge bei jedem größeren Sprung: **erst prüfen, ob Geyser die Zielversion kann, dann Paper.** Java-Clients mit neueren Versionen können sich trotzdem verbinden — dafür installieren wir ViaVersion + ViaBackwards.
+> **Die wichtigste Regel dieses Wegs: Geyser und die Plugins sind der limitierende Faktor.** Wir nutzen Paper **26.1.2**, nicht die neueste Version 26.2 — es ist die höchste Version, die Geyser **und** alle Plugins offiziell unterstützen (EssentialsX und CoreProtect haben für 26.2 noch kein Release). Reihenfolge bei jedem größeren Sprung: **erst prüfen, ob Geyser und alle Plugins die Zielversion können, dann Paper.** Java-Clients mit neueren Versionen können sich trotzdem verbinden — dafür installieren wir ViaVersion + ViaBackwards.
 
 ## Schritt 1 – PaperMC herunterladen
 
 ```bash
 mkdir -p /home/minecraft/paper && cd /home/minecraft/paper
 wget -O paper.jar \
-  "https://fill-data.papermc.io/v1/objects/25eb85bd8415195ce4bc188e1939e0c7cef77fb51d26d4e766407ee922561097/paper-1.21.11-130.jar"
+  "https://fill-data.papermc.io/v1/objects/1d70b1dab9cf4a6de615209a536f3a45a2186240253c428213ce2188ab95e5f7/paper-26.1.2-74.jar"
 chown -R minecraft:minecraft /home/minecraft/paper
 ```
 
-Datei sollte 50–60 MB sein. Aktueller Link falls dieser abläuft: [papermc.io/downloads/paper](https://papermc.io/downloads/paper) → Version **1.21.11** wählen → Download-Link kopieren.
+Datei sollte 50–60 MB sein. Aktueller Link falls dieser abläuft: [papermc.io/downloads/paper](https://papermc.io/downloads/paper) → Version **26.1.2** wählen → Download-Link kopieren.
 
 ## Schritt 2 – EULA & Teststart
 
@@ -47,7 +47,7 @@ wget -O ViaVersion.jar \
 wget -O ViaBackwards.jar \
   "https://hangarcdn.papermc.io/plugins/ViaVersion/ViaBackwards/versions/5.11.0/PAPER/ViaBackwards-5.11.0.jar"
 
-ls -lh *.jar && file *.jar   # jede Datei muss "Java archive data (JAR)" sein
+ls -lh *.jar && file *.jar   # "Java archive data (JAR)" oder "Zip archive data" - nie HTML/ASCII text
 ```
 
 > Beide Via-Plugins **immer aus demselben Channel** (Release) und **derselben Version** ziehen, nie mischen.
@@ -58,20 +58,21 @@ Noch als `minecraft`-User im `plugins`-Ordner. Reihenfolge/Abhängigkeiten und D
 
 ```bash
 # LuckPerms, Vault, EssentialsX (+Spawn +Chat), CoreProtect, GriefPrevention, Chunky
-# Aktuelle Download-Links jeweils von der offiziellen Quelle holen (siehe plugins-und-befehle.md):
-wget -O LuckPerms.jar        "LINK_LUCKPERMS_BUKKIT_HIER"
-wget -O Vault.jar             "LINK_VAULT_RELEASE_HIER"
-wget -O CoreProtect.jar       "LINK_COREPROTECT_1.21.11_HIER"
-wget -O GriefPrevention.jar   "LINK_GRIEFPREVENTION_RELEASE_HIER"
-wget -O Chunky.jar            "LINK_CHUNKY_PAPER_HIER"
-wget -O EssentialsX.jar       "LINK_ESSENTIALSX_HIER"
-wget -O EssentialsXSpawn.jar  "LINK_ESSENTIALSX_SPAWN_HIER"
-wget -O EssentialsXChat.jar   "LINK_ESSENTIALSX_CHAT_HIER"
+# Feste Links mit Versionsnummer, alle fuer Paper 26.1.2 geprueft (Stand September 2026).
+# Neuere Versionen: Quellen in plugins-und-befehle.md
+wget -O LuckPerms.jar        "https://cdn.modrinth.com/data/Vebnzrzj/versions/b0mk8uS6/LuckPerms-Bukkit-5.5.71.jar"
+wget -O Vault.jar            "https://github.com/MilkBowl/Vault/releases/download/1.7.3/Vault.jar"
+wget -O CoreProtect.jar      "https://cdn.modrinth.com/data/Lu3KuzdV/versions/Kma0kBsY/CoreProtect-CE-24.0.jar"
+wget -O GriefPrevention.jar  "https://cdn.modrinth.com/data/O4o4mKaq/versions/dGfCZHqk/GriefPrevention.jar"
+wget -O Chunky.jar           "https://cdn.modrinth.com/data/fALzjamp/versions/MdY6JATr/Chunky-Bukkit-1.5.3.jar"
+wget -O EssentialsX.jar      "https://github.com/EssentialsX/Essentials/releases/download/2.22.0/EssentialsX-2.22.0.jar"
+wget -O EssentialsXSpawn.jar "https://github.com/EssentialsX/Essentials/releases/download/2.22.0/EssentialsXSpawn-2.22.0.jar"
+wget -O EssentialsXChat.jar  "https://github.com/EssentialsX/Essentials/releases/download/2.22.0/EssentialsXChat-2.22.0.jar"
 
 ls -lh ~/paper/plugins && file ~/paper/plugins/*.jar
 ```
 
-**Jede** Datei muss mehrere MB groß sein und als `Java archive data (JAR)` erkannt werden — sonst war der Download eine Fehlerseite.
+**Jede** Datei muss als `Java archive data (JAR)` oder `Zip archive data` erkannt werden (eine JAR ist ein ZIP). Steht dort `HTML document` oder `ASCII text`, war der Download eine Fehlerseite. Die Größe sagt wenig: EssentialsXSpawn hat nur rund 20 KB, EssentialsX knapp 5 MB.
 
 > WorldEdit/WorldGuard sind **bewusst nicht** im Standard-Stack — GriefPrevention allein deckt Claims (inkl. Spawn-Schutz) ab, siehe [Sicherheits-Stufen](../03-sicherheit-und-kinder/). WorldGuard/WorldEdit als Ausbaustufe: [docs/05-erweiterungen](../05-erweiterungen/).
 
@@ -103,7 +104,7 @@ java -Xms2G -Xmx4G -jar paper.jar --nogui
 
 Log sollte u.a. zeigen: `[LuckPerms] Successfully enabled`, `[CoreProtect] Enabled`, `[GriefPrevention] ... enabled`, `[Essentials] Enabled`, `[floodgate] ... Floodgate`, `[Geyser-Spigot] Started Geyser on UDP port 19132`, `[ViaVersion] Loading ViaVersion`. Dann `stop`, `exit`.
 
-> Stürzt Geyser mit `ExceptionInInitializerError` ab: Paper-Version ist zu neu für Geyser — auf 1.21.11 bleiben, bis Geyser nachzieht.
+> Stürzt Geyser mit `ExceptionInInitializerError` ab: Paper-Version ist zu neu für Geyser — auf der gepinnten Version bleiben, bis Geyser nachzieht.
 
 ## Schritt 7 – Geyser konfigurieren
 
@@ -173,13 +174,9 @@ Ingame als OP (siehe [docs/06-wartung](../06-wartung/) für OP vergeben):
 /chunky start
 ```
 
-`/chunky pause` / `/chunky continue` / `/chunky progress` / `/chunky cancel`. Faustregel: Radius 3000 ≈ 6×6 km, reicht für die meisten privaten Server. Am besten laufen lassen, wenn niemand online ist. Nether ggf. separat mit kleinerem Radius (8× komprimiert):
+`/chunky pause` / `/chunky continue` / `/chunky progress` / `/chunky cancel`. Faustregel: Radius 3000 ≈ 6×6 km, reicht für die meisten privaten Server. Am besten laufen lassen, wenn niemand online ist.
 
-```
-/chunky world world_nether
-/chunky radius 1000
-/chunky start
-```
+> **Nether und End:** Seit Paper 26.1 liegen sie im Weltordner (`world/dimensions/minecraft/the_nether` bzw. `the_end`). Chunky 1.5.3 kann sie dort derzeit nicht auswählen ([Chunky-Issue #480](https://github.com/pop4959/Chunky/issues/480)) — bis das behoben ist, nur die Oberwelt vorgenerieren. Nether und End entstehen wie gewohnt beim Erkunden.
 
 ## Schritt 11 – ntfy, zentrale Config, Backup/Update/Watchdog, OS-Updates
 

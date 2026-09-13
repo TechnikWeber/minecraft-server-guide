@@ -27,10 +27,10 @@ MC_READY_PATTERN="Done \("
 MC_START_TIMEOUT=180
 
 # ===== Paper: bewusst an eine MC-Version gepinnt =====
-# Geyser ist immer der limitierende Faktor - siehe docs/02-crossplay.
+# Geyser und die Plugins sind der limitierende Faktor - siehe docs/02-crossplay.
 # Wird NICHT automatisch ueber Major-Versionen erhoeht.
 PAPER_PROJECT="paper"
-PAPER_MC_VERSION="1.21.11"
+PAPER_MC_VERSION="26.1.2"
 # PaperMC verlangt einen aussagekraeftigen User-Agent mit Kontakt-URL:
 PAPER_UA="mc-guide-updater/1.0 (https://github.com/TechnikWeber/minecraft-server-guide)"
 
