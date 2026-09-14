@@ -17,6 +17,10 @@ if server_is_up; then
   exit 0
 fi
 
+# Dienst gerade erst gestartet (Reboot, Backup), Port noch nicht offen ->
+# faehrt noch hoch, nicht mitten im Start neu starten
+if service_starting; then exit 0; fi
+
 # Paper braucht mit vollem Plugin-Stack oft deutlich laenger als 30 s bis
 # "Done (" - deshalb aufs Log warten statt fest zu schlafen (sonst Fehlalarm).
 systemctl reset-failed "$MC_SERVICE" 2>/dev/null

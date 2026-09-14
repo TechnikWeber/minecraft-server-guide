@@ -1,6 +1,6 @@
 # 🎮 Minecraft-Server-Guide
 
-Zwei komplette Anleitungen für einen eigenen Minecraft-Server auf **Debian** oder **Ubuntu** — mit Fokus auf den Standardfall **Proxmox LXC**. Automatische Updates mit Rollback, tägliche Backups, Überwachung mit ntfy-Benachrichtigungen und ein durchdachtes Sicherheitskonzept bis hin zum Kinderserver sind von Anfang an eingeplant, nicht nachträglich angeflanscht.
+Zwei komplette Anleitungen für einen eigenen Minecraft-Server auf **Debian** oder **Ubuntu** — mit Fokus auf den Standardfall **Proxmox LXC**, genauso auf einem gemieteten **VServer**. Automatische Updates mit Rollback, tägliche Backups, Überwachung mit ntfy-Benachrichtigungen und ein durchdachtes Sicherheitskonzept bis hin zum Kinderserver sind von Anfang an eingeplant, nicht nachträglich angeflanscht.
 
 Dieses Repo ersetzt drei ältere Einzel-Anleitungen (`ubuntu-minecraft-server`, `ubuntu-minecraft-crossplay`, `debian-minecraft-crossplay-server`) und führt ihre besten Ideen zusammen.
 
@@ -10,7 +10,8 @@ Dieses Repo ersetzt drei ältere Einzel-Anleitungen (`ubuntu-minecraft-server`, 
 |---|---|---|
 | Wer spielt? | Handy, Tablet, Windows-PC (Bedrock Edition) | dieselben **plus** Java Edition am PC |
 | Plugins (`/home`, `/tpa`, Grundstücksschutz, Schäden zurückrollen) | – | ✅ |
-| RAM im LXC | 2 GB | 8 GB |
+| RAM (LXC oder VServer) | 2 GB | 8 GB |
+| Günstiger VServer (Stand 09/2026) | ab ca. 6 €/Monat, nur x86_64 | ab ca. 10,50 €/Monat |
 | Aufwand | gering | mittel |
 | Kinderserver | Adventure-Standard mit Freischaltung, Gamerules | zusätzlich Grundstücksschutz, CoreProtect, Starter-Kit und Spieler-Anleitung zum Weitergeben |
 

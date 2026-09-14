@@ -1,14 +1,14 @@
-# A – Bedrock-Server (Debian/Ubuntu, Proxmox LXC)
+# A – Bedrock-Server (Debian/Ubuntu, Proxmox LXC oder VServer)
 
 Die komplette Anleitung für einen **reinen Bedrock-Server**: Handy, Tablet und Windows-PC (Bedrock Edition) spielen gemeinsam auf einer Welt. Der Server ist leichtgewichtig, braucht wenig RAM und kommt ohne Java aus. Automatische Updates mit Rollback, tägliche Backups, Überwachung und ntfy-Benachrichtigungen sind von Anfang an dabei.
 
 > Sollen auch Java-Spieler am PC mitspielen, oder braucht ihr Grundstücksschutz, `/home`, `/tpa` und das Zurückrollen von Schäden? Dann ist **[B – Crossplay](../b-crossplay/)** der richtige Weg — Bedrock hat kein Plugin-System.
 
-Alle Befehle laufen **als root im LXC**. Wo der Benutzer `minecraft` gebraucht wird, steht `su - minecraft` im Befehlsblock.
+Alle Befehle laufen **als root im LXC** bzw. auf dem VServer. Wo der Benutzer `minecraft` gebraucht wird, steht `su - minecraft` im Befehlsblock.
 
 ## Inhalt
 
-1. **[Vorbereitung](#teil-1--vorbereitung)** — LXC, Zeitzone, Pakete, Repo, Benutzer
+1. **[Vorbereitung](#teil-1--vorbereitung)** — LXC oder VServer, Zeitzone, Pakete, Repo, Benutzer
 2. **[Server installieren](#teil-2--server-installieren)** — Download, Teststart, server.properties, systemd, Firewall, OP-Rechte
 3. **[Automatik](#teil-3--automatik)** — Config, Scripts, OS-Updates, Cronjobs
 4. **[Sicherheit und Kinderserver](#teil-4--sicherheit-und-kinderserver)** — Allowlist, Gamemodes, Kinderserver-Profil, Gamerules
@@ -42,6 +42,72 @@ In den Proxmox-Einstellungen:
 
 Im Proxmox-LXC ist man standardmäßig root. Auf einem klassischen Ubuntu-Server außerhalb eines LXC zuerst `sudo -i`.
 
+### Alternative: VServer statt LXC
+
+Kein Proxmox zu Hause? Die Anleitung funktioniert genauso auf einem gemieteten VServer (VPS). Scripts, systemd-Unit und Cronjobs laufen dort unverändert. Anders ist nur, was in diesem Abschnitt steht — danach geht es normal mit [Schritt 2](#schritt-2--uhrzeit-und-zeitzone-prüfen) weiter. An den späteren Stellen, an denen es einen Unterschied gibt, steht ein kurzer Hinweis **„Auf dem VServer"**.
+
+**Welcher VServer?**
+
+| | |
+|---|---|
+| Architektur | **x86_64 (amd64)** — **kein ARM-Server** (z.B. Hetzner CAX, netcup ARM): Den Bedrock Dedicated Server gibt es nur für x86_64 |
+| RAM | 2 GB reichen, 4 GB schaden nicht |
+| Image | **Ubuntu 24.04** oder **Debian 13**, wie bei der LXC |
+| Günstige Beispiele (Stand September 2026, inkl. MwSt.) | **netcup VPS 500 G12** (2 Kerne, 4 GB, 128 GB): 5,91 €/Monat bei 12 Monaten Laufzeit, 6,81 € monatlich kündbar · **Hetzner CX23** (2 Kerne, 4 GB, 40 GB): ca. 7,13 €/Monat inkl. IPv4, stundengenau abgerechnet und jederzeit kündbar |
+
+Beim Bestellen deinen **SSH-Schlüssel** hinterlegen, falls der Anbieter das anbietet. Noch keinen? Auf dem eigenen PC `ssh-keygen -t ed25519` ausführen (unter Windows genauso in der PowerShell) — der öffentliche Teil liegt danach in `~/.ssh/id_ed25519.pub`.
+
+#### Anmelden und Architektur prüfen
+
+```bash
+ssh root@DEINE-SERVER-IP
+dpkg --print-architecture   # muss "amd64" zeigen
+```
+
+Meldest du dich mit einem anderen Benutzer an als `root`: zuerst `sudo -i`.
+
+#### SSH absichern — als Allererstes
+
+Ein VServer hängt direkt im Internet, Bots probieren ab der ersten Minute Passwörter durch. Deshalb erlaubst du nur noch die Anmeldung per Schlüssel.
+
+Liegt dein Schlüssel noch nicht auf dem Server, **vom eigenen PC aus** hochladen:
+
+```bash
+# Linux/macOS:
+ssh-copy-id root@DEINE-SERVER-IP
+# Windows (PowerShell):
+type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh root@DEINE-SERVER-IP "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+```
+
+Dann **auf dem Server** Passwort-Anmeldungen abschalten:
+
+```bash
+cat > /etc/ssh/sshd_config.d/00-minecraft-guide.conf <<'EOF'
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin prohibit-password
+EOF
+sshd -t && systemctl restart ssh
+sshd -T | grep -i '^passwordauthentication'   # muss "passwordauthentication no" zeigen
+```
+
+> Der Dateiname beginnt mit `00`, weil bei SSH die **erste** Angabe gewinnt — so setzt er sich auch gegen eine `50-cloud-init.conf` durch, mit der manche Images Passwörter wieder erlauben.
+
+> **Nicht aussperren:** Die aktuelle Verbindung offen lassen und in einem **zweiten Terminal** testen, ob `ssh root@DEINE-SERVER-IP` noch klappt. Geht gar nichts mehr: Jeder Anbieter hat im Kundenmenü eine Web-Konsole (netcup: Server Control Panel, Hetzner: Console), darüber kommst du ohne SSH auf den Server.
+
+#### Was auf dem VServer sonst anders ist
+
+| Stelle | LXC zu Hause | VServer |
+|---|---|---|
+| Proxmox-Einstellungen (oben) | „Start at boot", feste IP | entfällt — der Dienst startet per systemd von selbst, die öffentliche IP ist fest |
+| [Schritt 7](#schritt-7--bestehende-welt-übernehmen-optional) – Welt übernehmen | `pct pull`/`pct push` | per `scp` über den eigenen PC |
+| [Schritt 11](#schritt-11--firewall-und-port-forwarding) – Firewall | Port-Forwarding im Router | kein Router; SSH mit `ufw limit`, ggf. Firewall des Anbieters |
+| [Allowlist](#stufe-1--wer-darf-rein-allowlist) | sinnvoll | **dringend empfohlen** — der Server ist für die ganze Welt erreichbar |
+| Snapshots | `pct snapshot` | im Kundenmenü des Anbieters |
+| Kernel | kommt vom Host | eigener Kernel — nach Updates gelegentlich neu starten, siehe [Automatischer Neustart](#automatischer-neustart-nur-vserver) |
+| Backups | liegen im LXC | liegen auf dem VServer — [Off-Site-Backup](#weitere-empfehlungen) einplanen |
+| Spieler verbinden sich mit | DDNS-Name oder IP des Anschlusses | IP des VServers (oder eigene Domain mit A-Record) |
+
 ### Schritt 2 – Uhrzeit und Zeitzone prüfen
 
 Falsche Zeitzone → Backups und Updates laufen zur falschen Zeit, Logs haben falsche Zeitstempel.
@@ -62,10 +128,10 @@ timedatectl set-ntp true
 
 ```bash
 apt update && apt upgrade -y
-apt install -y curl unzip jq ufw logrotate git
+apt install -y curl unzip jq ufw logrotate git cron
 ```
 
-`curl` und `unzip` für den Server-Download, `jq` für den Update-Check, `ufw` als Firewall, `logrotate` für die Logs, `git` für dieses Repo.
+`curl` und `unzip` für den Server-Download, `jq` für den Update-Check, `ufw` als Firewall, `logrotate` für die Logs, `git` für dieses Repo, `cron` für die Automatik aus Teil 3 (fehlt in manchen Debian-13-Images).
 
 Dazu die Laufzeit-Bibliotheken des Bedrock-Servers — nur hier unterscheiden sich die Distros:
 
@@ -142,6 +208,7 @@ rm /root/bedrock-backup.tar.gz
 
 - **Alter Server ohne dieses Backup-Script:** dort den Server stoppen und im Server-Ordner dieselben Dateien von Hand packen: `tar -czf bedrock-backup-DATUM.tar.gz worlds server.properties permissions.json allowlist.json`
 - **Alter Server nicht auf demselben Proxmox-Host:** per `scp` mit einem Benutzer übertragen, der sich per SSH anmelden darf — `minecraft` hat kein Passwort und geht dafür nicht.
+- **Umzug auf einen VServer:** Auf dem Proxmox-Host nur die `pct pull`-Zeile ausführen, dann vom eigenen PC aus `scp root@PROXMOX-IP:/tmp/bedrock-backup.tar.gz .` und `scp bedrock-backup.tar.gz root@DEINE-SERVER-IP:/root/bedrock-backup.tar.gz`. Weiter mit „Auf dem NEUEN Server".
 
 > **Wichtig:** `level-name=` in `server.properties` muss **exakt** auf den Ordnernamen unter `worlds/` zeigen. Ein älteres Weltformat wird beim ersten Start automatisch und unumkehrbar aktualisiert — das Original-Backup deshalb aufheben, bis alles läuft.
 
@@ -195,6 +262,8 @@ ufw enable
 ```
 
 Router: **UDP** 19132 → 19132 auf die feste LXC-IP aus [Schritt 1](#schritt-1--lxc-anlegen) (`ip a | grep inet` zeigt sie). Kommt von außen nichts an: CGNAT prüfen, siehe [Weitere Empfehlungen](#weitere-empfehlungen).
+
+> **Auf dem VServer:** `ufw limit 22/tcp` statt `ufw allow 22/tcp` — sperrt eine IP, die 6 oder mehr Verbindungen in 30 Sekunden versucht, und bremst so Passwort-Rater zusätzlich aus. Router und Port-Forwarding entfallen. Hat der Anbieter im Kundenmenü eine eigene Firewall aktiv (z.B. Hetzner Cloud Firewall), dort **TCP** 22 und **UDP** 19132 ebenfalls freigeben.
 
 ### Schritt 12 – OP-Rechte vergeben
 
@@ -296,7 +365,7 @@ crontab -e
 |---|---|---|
 | Watchdog | ✅ alle 5 Minuten | Startet einen abgestürzten Server neu, meldet nur Zustandswechsel |
 | Backup | ✅ täglich 03:00 | Welt, `server.properties`, `permissions.json`, `allowlist.json` · aufbewahrt 7 Tage (`BACKUP_KEEP_DAYS` in der Config) |
-| OS-Sicherheitsupdates | ✅ täglich 04:00 | Neustart wird nur **gemeldet**, nicht erzwungen |
+| OS-Sicherheitsupdates | ✅ täglich 04:00 | Neustart wird nur **gemeldet**, nicht erzwungen — auf dem VServer optional automatisch, siehe [Automatischer Neustart](#automatischer-neustart-nur-vserver) |
 | Bedrock-Version | ✅ täglich 04:30 | Über die Mojang-API, vorher Backup und Snapshot, bei Fehlstart automatischer Rollback |
 | Distro-Wechsel, Proxmox-Host | ❌ manuell | siehe [Was die Automatik nicht abdeckt](#was-die-automatik-nicht-abdeckt) |
 
@@ -345,7 +414,7 @@ Standardmäßig **aus** — jeder mit der Adresse kann beitreten. Sinnvoll, soba
 Bedrock hat kein Plugin-System — Grundstücksschutz und das gezielte Zurückrollen einzelner Schäden gibt es hier nicht (dafür: [B – Crossplay](../b-crossplay/) mit GriefPrevention und CoreProtect). Die Sicherheitsleinen sind:
 
 - **Tägliches Backup** aus Teil 3 — so geht's: [Backup zurückspielen](#backup-zurückspielen). Dabei geht alles seit dem Backup verloren, nicht nur der Schaden.
-- **Proxmox-Snapshot** vor größeren Eingriffen: `pct snapshot <CTID> vor-aenderung`, im Notfall `pct rollback <CTID> vor-aenderung`.
+- **Proxmox-Snapshot** vor größeren Eingriffen: `pct snapshot <CTID> vor-aenderung`, im Notfall `pct rollback <CTID> vor-aenderung`. Auf dem VServer: Snapshot im Kundenmenü des Anbieters.
 
 ### Kinderserver-Profil
 
@@ -460,10 +529,21 @@ Die Zeile muss `-security` (Ubuntu) bzw. `Debian-Security` (Debian) enthalten. W
 
 | Aufgabe | Wie oft | Was tun |
 |---|---|---|
-| **Distro-Wechsel** (Ubuntu 24.04 → 26.04, Debian 13 → 14) | alle paar Jahre | Bewusst und mit Proxmox-Snapshot vorher (`pct snapshot <CTID> vor-upgrade`); bei Ubuntu über `do-release-upgrade`, bei Debian über die Paketquellen auf den neuen Codenamen. |
+| **Distro-Wechsel** (Ubuntu 24.04 → 26.04, Debian 13 → 14) | alle paar Jahre | Bewusst und mit Snapshot vorher (Proxmox: `pct snapshot <CTID> vor-upgrade`, VServer: im Kundenmenü des Anbieters); bei Ubuntu über `do-release-upgrade`, bei Debian über die Paketquellen auf den neuen Codenamen. |
 | **Support-Ende der Distro** | nach ca. 5 Jahren | Ubuntu: **Ubuntu Pro** ist für Privatnutzung kostenlos und verlängert die Sicherheitsupdates um Jahre. Debian: Die LTS-Phase läuft automatisch über die normalen Paketquellen; danach gibt es nur noch kostenpflichtiges ELTS — rechtzeitig auf die nächste Version wechseln. |
-| **Proxmox-Host-Updates** | gelegentlich | Laufen auf dem Host, nicht im LXC. |
-| **Kernel** | – | Kommt vom Host — im LXC nichts zu tun. |
+| **Proxmox-Host-Updates** | gelegentlich | Laufen auf dem Host, nicht im LXC. Auf dem VServer kümmert sich der Anbieter darum. |
+| **Kernel** | nach Kernel-Updates | LXC: kommt vom Host, nichts zu tun. VServer: Neustart nötig, siehe [Automatischer Neustart](#automatischer-neustart-nur-vserver). |
+
+#### Automatischer Neustart (nur VServer)
+
+Auf dem VServer hast du einen eigenen Kernel. Nach einem Kernel-Update meldet `mc-os-update.sh` den nötigen Neustart **einmalig** — als Hinweis in „Host: Sicherheitsupdates installiert" oder als eigene Meldung „Host: Neustart empfohlen". Ein `reboot` genügt — der Minecraft-Server startet danach von selbst, und der Watchdog lässt ihm dafür genug Zeit. Wer das nicht von Hand machen will, ergänzt in `crontab -e`:
+
+```cron
+# Nur VServer: sonntags um 06:00 neu starten, falls ein Neustart ansteht
+0 6 * * 0 [ -f /var/lib/minecraft-guide/reboot-pending ] && /sbin/shutdown -r now
+```
+
+Die Datei legt `mc-os-update.sh` an, sobald es einen Neustart meldet, und entfernt sie wieder, wenn keiner mehr nötig ist. 06:00 liegt bewusst hinter Backup und Updates. In der LXC ist das nicht nötig — dort kommt der Kernel vom Host.
 
 ### ntfy-Meldungen
 
@@ -480,7 +560,7 @@ Die Zeile muss `-security` (Ubuntu) bzw. `Debian-Security` (Debian) enthalten. W
 | `Bedrock: Server DOWN` | Server weg, automatischer Neustart hat nicht geholfen. | **Ja** — Befehle stehen in der Nachricht |
 | `Bedrock: Server wieder online` | Nach einem Ausfall wieder erreichbar. | Nein |
 | `Host: Sicherheitsupdates installiert` | Sicherheitsupdates eingespielt. | Nur falls ein Neustart-Hinweis dabeisteht |
-| `Host: Neustart empfohlen` | Bibliotheken aktualisiert. | Bei Gelegenheit `reboot` |
+| `Host: Neustart empfohlen` | Kernel oder Bibliotheken aktualisiert, kommt einmal pro Anlass. | Bei Gelegenheit `reboot` |
 | `Host: OS-Update Problem` | Sicherheitsupdates liefen nicht sauber durch. | Befehle stehen in der Nachricht |
 
 ### ntfy absichern
@@ -496,7 +576,7 @@ Ein öffentliches `ntfy.sh`-Topic kann von **jedem** gelesen und beschrieben wer
 | Problem | Lösung |
 |---|---|
 | `Port may be in use` beim Start | `pkill -f bedrock_server`, dann `systemctl restart minecraft-bedrock` |
-| Von außen kommt niemand rein | Port-Forwarding **UDP** 19132 und feste IP prüfen; CGNAT siehe [Weitere Empfehlungen](#weitere-empfehlungen) |
+| Von außen kommt niemand rein | Port-Forwarding **UDP** 19132 und feste IP prüfen; CGNAT siehe [Weitere Empfehlungen](#weitere-empfehlungen) · VServer: `ufw status` und die Firewall im Kundenmenü des Anbieters prüfen |
 | Konsole (Xbox/PlayStation/Switch) findet den Server nicht | Konsolen können keine eigene Server-Adresse eintragen — siehe [Weitere Empfehlungen](#weitere-empfehlungen) |
 | Update-Meldung kommt jede Nacht wieder | `/var/log/mc-update.log` und `journalctl -u minecraft-bedrock -n 80` ansehen |
 | `apt`-Befehl meldet „could not get lock" | Gerade läuft ein anderer apt-Vorgang (z.B. `mc-os-update.sh` oder der tägliche Paketlisten-Abgleich) — kurz warten und erneut versuchen |
@@ -506,9 +586,9 @@ Ein öffentliches `ntfy.sh`-Topic kann von **jedem** gelesen und beschrieben wer
 
 ## Weitere Empfehlungen
 
-1. **DDNS für Freunde von außerhalb** (DuckDNS, FRITZ!Box MyFRITZ!), falls sich die öffentliche IP ändert.
-2. **CGNAT/DS-Lite prüfen**, falls Port-Forwarding gar nicht ankommt: öffentliche IP mit der WAN-IP des Routers vergleichen; `100.64.x.x` = CGNAT. Lösung: echte IPv4 beim Provider anfragen, IPv6 nutzen, oder Tailscale/ZeroTier.
-3. **Proxmox-Snapshot als zweite Sicherheitsleine** vor größeren Eingriffen: `pct snapshot <CTID> vor-update`, im Notfall `pct rollback <CTID> vor-update`. Zusätzlich einen wöchentlichen `vzdump` einrichten.
-4. **Off-Site-Backup:** Die Backups liegen sonst nur im selben LXC. Per `rsync`/`rclone` nachts aufs NAS oder in die Cloud kopieren.
+1. **Nur zu Hause – DDNS für Freunde von außerhalb** (DuckDNS, FRITZ!Box MyFRITZ!), falls sich die öffentliche IP ändert.
+2. **Nur zu Hause – CGNAT/DS-Lite prüfen**, falls Port-Forwarding gar nicht ankommt: öffentliche IP mit der WAN-IP des Routers vergleichen; `100.64.x.x` = CGNAT. Lösung: echte IPv4 beim Provider anfragen, IPv6 nutzen, oder Tailscale/ZeroTier.
+3. **Proxmox-Snapshot als zweite Sicherheitsleine** vor größeren Eingriffen: `pct snapshot <CTID> vor-update`, im Notfall `pct rollback <CTID> vor-update`. Zusätzlich einen wöchentlichen `vzdump` einrichten. Auf dem VServer: Snapshots im Kundenmenü bzw. die Backup-Option des Anbieters.
+4. **Off-Site-Backup:** Die Backups liegen sonst nur im selben LXC. Per `rsync`/`rclone` nachts aufs NAS oder in die Cloud kopieren. Auf dem VServer besonders wichtig — fällt er aus oder wird gekündigt, sind die Backups mit weg. Am einfachsten holt ein Rechner oder NAS zu Hause sie nachts ab, dann braucht der VServer keine Zugangsdaten für dein Heimnetz: `rsync -a root@DEINE-SERVER-IP:/home/minecraft/backups/ /pfad/zu/minecraft-backups/`
 5. **RAM sparen bei kleinem LXC:** `view-distance` (z.B. 8) und `tick-distance` (z.B. 4) in `server.properties` reduzieren.
 6. **Konsolen-Clients (Xbox/PlayStation/Switch)** können keine eigene Server-Adresse eintragen — nur Handy, Tablet und Windows. Vorher einplanen, falls die Familie auf Konsole spielt.

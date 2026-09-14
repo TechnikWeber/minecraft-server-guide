@@ -1,4 +1,4 @@
-# B – Crossplay-Server: Java + Bedrock + Plugins (Debian/Ubuntu, Proxmox LXC)
+# B – Crossplay-Server: Java + Bedrock + Plugins (Debian/Ubuntu, Proxmox LXC oder VServer)
 
 Die komplette Anleitung für einen **Crossplay-Server**: Java-Spieler am PC und Bedrock-Spieler auf Handy, Tablet und Windows spielen gemeinsam auf einer Welt. Dazu ein durchdachter Plugin-Stack für Komfort, Rechte und Schutz. Automatische Updates mit Rollback, tägliche Backups, Überwachung und ntfy-Benachrichtigungen sind von Anfang an dabei.
 
@@ -8,11 +8,11 @@ Die komplette Anleitung für einen **Crossplay-Server**: Java-Spieler am PC und 
 
 > Nur Bedrock-Geräte, keine Plugins nötig? Dann reicht der schlankere Weg **[A – Bedrock](../a-bedrock/)**.
 
-Alle Befehle laufen **als root im LXC**. Wo der Benutzer `minecraft` gebraucht wird, steht `su - minecraft` im Befehlsblock.
+Alle Befehle laufen **als root im LXC** bzw. auf dem VServer. Wo der Benutzer `minecraft` gebraucht wird, steht `su - minecraft` im Befehlsblock.
 
 ## Inhalt
 
-1. **[Vorbereitung](#teil-1--vorbereitung)** — LXC, Zeitzone, Pakete, Java 25, Repo, Benutzer
+1. **[Vorbereitung](#teil-1--vorbereitung)** — LXC oder VServer, Zeitzone, Pakete, Java 25, Repo, Benutzer
 2. **[Server installieren](#teil-2--server-installieren)** — Paper, Geyser, Plugins, Konfiguration, systemd, Firewall, OP-Rechte, Chunky
 3. **[Automatik](#teil-3--automatik)** — Config, Scripts, OS-Updates, Cronjobs
 4. **[Sicherheit und Kinderserver](#teil-4--sicherheit-und-kinderserver)** — Whitelist, Gamemodes, Claims, Kinderserver-Profil, Gamerules, Starter-Kit
@@ -51,6 +51,86 @@ In den Proxmox-Einstellungen:
 
 Im Proxmox-LXC ist man standardmäßig root. Auf einem klassischen Ubuntu-Server außerhalb eines LXC zuerst `sudo -i`.
 
+### Alternative: VServer statt LXC
+
+Kein Proxmox zu Hause? Die Anleitung funktioniert genauso auf einem gemieteten VServer (VPS). Scripts, systemd-Unit und Cronjobs laufen dort unverändert. Anders ist nur, was in diesem Abschnitt steht — danach geht es normal mit [Schritt 2](#schritt-2--uhrzeit-und-zeitzone-prüfen) weiter. An den späteren Stellen, an denen es einen Unterschied gibt, steht ein kurzer Hinweis **„Auf dem VServer"**.
+
+**Welcher VServer?**
+
+| | |
+|---|---|
+| Architektur | **x86_64 (amd64)** empfohlen. ARM (z.B. Hetzner CAX, netcup ARM) geht mit Java grundsätzlich auch, ist mit dieser Anleitung aber nicht getestet |
+| RAM | **8 GB** (6 GB als Minimum, wie bei der LXC) |
+| Image | **Ubuntu 24.04** oder **Debian 13**, wie bei der LXC |
+| Günstige Beispiele (Stand September 2026, inkl. MwSt.) | **netcup VPS 1000 G12** (4 Kerne, 8 GB, 256 GB): 10,36 €/Monat bei 12 Monaten Laufzeit, 11,26 € monatlich kündbar · **Hetzner CX33** (4 Kerne, 8 GB, 80 GB): ca. 10,70 €/Monat inkl. IPv4, stundengenau abgerechnet und jederzeit kündbar |
+
+Beim Bestellen deinen **SSH-Schlüssel** hinterlegen, falls der Anbieter das anbietet. Noch keinen? Auf dem eigenen PC `ssh-keygen -t ed25519` ausführen (unter Windows genauso in der PowerShell) — der öffentliche Teil liegt danach in `~/.ssh/id_ed25519.pub`.
+
+#### Anmelden und Architektur prüfen
+
+```bash
+ssh root@DEINE-SERVER-IP
+dpkg --print-architecture   # sollte "amd64" zeigen
+```
+
+Meldest du dich mit einem anderen Benutzer an als `root`: zuerst `sudo -i`.
+
+#### SSH absichern — als Allererstes
+
+Ein VServer hängt direkt im Internet, Bots probieren ab der ersten Minute Passwörter durch. Deshalb erlaubst du nur noch die Anmeldung per Schlüssel.
+
+Liegt dein Schlüssel noch nicht auf dem Server, **vom eigenen PC aus** hochladen:
+
+```bash
+# Linux/macOS:
+ssh-copy-id root@DEINE-SERVER-IP
+# Windows (PowerShell):
+type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh root@DEINE-SERVER-IP "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+```
+
+Dann **auf dem Server** Passwort-Anmeldungen abschalten:
+
+```bash
+cat > /etc/ssh/sshd_config.d/00-minecraft-guide.conf <<'EOF'
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin prohibit-password
+EOF
+sshd -t && systemctl restart ssh
+sshd -T | grep -i '^passwordauthentication'   # muss "passwordauthentication no" zeigen
+```
+
+> Der Dateiname beginnt mit `00`, weil bei SSH die **erste** Angabe gewinnt — so setzt er sich auch gegen eine `50-cloud-init.conf` durch, mit der manche Images Passwörter wieder erlauben.
+
+> **Nicht aussperren:** Die aktuelle Verbindung offen lassen und in einem **zweiten Terminal** testen, ob `ssh root@DEINE-SERVER-IP` noch klappt. Geht gar nichts mehr: Jeder Anbieter hat im Kundenmenü eine Web-Konsole (netcup: Server Control Panel, Hetzner: Console), darüber kommst du ohne SSH auf den Server.
+
+#### Swap als Notreserve
+
+VServer-Images kommen meist ohne Swap. Läuft der RAM voll, beendet Linux sonst einfach den größten Prozess — und das ist Java mit deinem Server. 2 GB Swap fangen solche Spitzen ab:
+
+```bash
+free -h   # steht bei "Swap" 0B, anlegen:
+fallocate -l 2G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile && swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+```
+
+> Swap ist nur das Sicherheitsnetz. Wird er dauerhaft genutzt (`free -h`), ist `-Xmx` zu hoch gesetzt oder der VServer zu klein.
+
+#### Was auf dem VServer sonst anders ist
+
+| Stelle | LXC zu Hause | VServer |
+|---|---|---|
+| Proxmox-Einstellungen (oben) | „Start at boot", feste IP | entfällt — der Dienst startet per systemd von selbst, die öffentliche IP ist fest |
+| [Schritt 15](#schritt-15--systemd-service) – `-Xmx` | RAM der LXC minus ca. 1,5 GB | RAM des VServers minus ca. 1,5 GB, bei 8 GB also `-Xmx6G` |
+| [Schritt 16](#schritt-16--firewall-und-port-forwarding) – Firewall | Port-Forwarding im Router | kein Router; SSH mit `ufw limit`, ggf. Firewall des Anbieters |
+| [Whitelist](#stufe-1--wer-darf-rein-whitelist) | sinnvoll | **dringend empfohlen** — der Server ist für die ganze Welt erreichbar |
+| Snapshots | `pct snapshot` | im Kundenmenü des Anbieters |
+| Kernel | kommt vom Host | eigener Kernel — nach Updates gelegentlich neu starten, siehe [Automatischer Neustart](#automatischer-neustart-nur-vserver) |
+| Backups | liegen im LXC | liegen auf dem VServer — [Off-Site-Backup](#weitere-empfehlungen) einplanen |
+| Spieler verbinden sich mit | DDNS-Name oder IP des Anschlusses | IP des VServers (oder eigene Domain mit A-Record) |
+
 ### Schritt 2 – Uhrzeit und Zeitzone prüfen
 
 Falsche Zeitzone → Backups und Updates laufen zur falschen Zeit, Logs haben falsche Zeitstempel.
@@ -71,10 +151,10 @@ timedatectl set-ntp true
 
 ```bash
 apt update && apt upgrade -y
-apt install -y curl wget unzip jq file ufw logrotate git ca-certificates gnupg
+apt install -y curl wget unzip jq file ufw logrotate git cron ca-certificates gnupg
 ```
 
-`curl` und `wget` für Downloads, `unzip` und `file` zum Prüfen der JARs, `jq` für den Update-Check, `ufw` als Firewall, `logrotate` für die Logs, `git` für dieses Repo, `ca-certificates` und `gnupg` für das Java-Repository. Auf beiden Distros identisch.
+`curl` und `wget` für Downloads, `unzip` und `file` zum Prüfen der JARs, `jq` für den Update-Check, `ufw` als Firewall, `logrotate` für die Logs, `git` für dieses Repo, `cron` für die Automatik aus Teil 3 (fehlt in manchen Debian-13-Images), `ca-certificates` und `gnupg` für das Java-Repository. Auf beiden Distros identisch.
 
 ### Schritt 4 – Java 25 installieren
 
@@ -266,7 +346,7 @@ player-link:
 ```bash
 cd /opt/minecraft-server-guide
 cp systemd/minecraft-paper.service /etc/systemd/system/minecraft-paper.service
-nano /etc/systemd/system/minecraft-paper.service   # -Xmx anpassen: LXC-RAM minus ca. 1,5 GB
+nano /etc/systemd/system/minecraft-paper.service   # -Xmx anpassen: RAM der LXC bzw. des VServers minus ca. 1,5 GB
 systemctl daemon-reload
 systemctl enable --now minecraft-paper
 journalctl -u minecraft-paper -n 50
@@ -284,6 +364,8 @@ ufw enable
 ```
 
 Router: **TCP** 25565 → 25565 und **UDP** 19132 → 19132, beide auf die feste LXC-IP aus [Schritt 1](#schritt-1--lxc-anlegen) (`ip a | grep inet` zeigt sie). Kommt von außen nichts an: CGNAT prüfen, siehe [Weitere Empfehlungen](#weitere-empfehlungen).
+
+> **Auf dem VServer:** `ufw limit 22/tcp` statt `ufw allow 22/tcp` — sperrt eine IP, die 6 oder mehr Verbindungen in 30 Sekunden versucht, und bremst so Passwort-Rater zusätzlich aus. Router und Port-Forwarding entfallen. Hat der Anbieter im Kundenmenü eine eigene Firewall aktiv (z.B. Hetzner Cloud Firewall), dort **TCP** 22, **TCP** 25565 und **UDP** 19132 ebenfalls freigeben.
 
 ### Schritt 17 – OP-Rechte vergeben
 
@@ -394,7 +476,7 @@ crontab -e
 |---|---|---|
 | Watchdog | ✅ alle 5 Minuten | Startet einen abgestürzten Server neu, wartet bis Paper wirklich bereit ist, meldet nur Zustandswechsel |
 | Backup | ✅ täglich 03:30 | Welt samt Nether und End, Paper- und Plugin-Configs, Daten von LuckPerms, GriefPrevention, CoreProtect und Essentials, Floodgate-Schlüssel · aufbewahrt 7 Tage (`BACKUP_KEEP_DAYS` in der Config) |
-| OS-Sicherheitsupdates | ✅ täglich 04:00 | Neustart wird nur **gemeldet**, nicht erzwungen |
+| OS-Sicherheitsupdates | ✅ täglich 04:00 | Neustart wird nur **gemeldet**, nicht erzwungen — auf dem VServer optional automatisch, siehe [Automatischer Neustart](#automatischer-neustart-nur-vserver) |
 | Geyser + Floodgate | ✅ täglich 05:00 | Müssen mit Bedrock-Client-Updates Schritt halten |
 | Paper-Builds **innerhalb** von 26.1.2 | ✅ täglich 05:00 | Patch-Builds sind sicher · vorher Backup, bei Fehlstart automatischer Rollback |
 | Paper-Versionssprung, ViaVersion/ViaBackwards, übrige Plugins | ❌ manuell | Bewusste Entscheidung nötig — siehe [Paper und Plugins von Hand aktualisieren](#paper-und-plugins-von-hand-aktualisieren) |
@@ -712,10 +794,21 @@ Die Zeile muss `-security` (Ubuntu) bzw. `Debian-Security` (Debian) enthalten. W
 | Aufgabe | Wie oft | Was tun |
 |---|---|---|
 | **Paper-Versionssprung, ViaVersion, übrige Plugins** | gelegentlich | siehe [Paper und Plugins von Hand aktualisieren](#paper-und-plugins-von-hand-aktualisieren) |
-| **Distro-Wechsel** (Ubuntu 24.04 → 26.04, Debian 13 → 14) | alle paar Jahre | Bewusst und mit Proxmox-Snapshot vorher (`pct snapshot <CTID> vor-upgrade`); bei Ubuntu über `do-release-upgrade`, bei Debian über die Paketquellen auf den neuen Codenamen. |
+| **Distro-Wechsel** (Ubuntu 24.04 → 26.04, Debian 13 → 14) | alle paar Jahre | Bewusst und mit Snapshot vorher (Proxmox: `pct snapshot <CTID> vor-upgrade`, VServer: im Kundenmenü des Anbieters); bei Ubuntu über `do-release-upgrade`, bei Debian über die Paketquellen auf den neuen Codenamen. |
 | **Support-Ende der Distro** | nach ca. 5 Jahren | Ubuntu: **Ubuntu Pro** ist für Privatnutzung kostenlos und verlängert die Sicherheitsupdates um Jahre. Debian: Die LTS-Phase läuft automatisch über die normalen Paketquellen; danach gibt es nur noch kostenpflichtiges ELTS — rechtzeitig auf die nächste Version wechseln. |
-| **Proxmox-Host-Updates** | gelegentlich | Laufen auf dem Host, nicht im LXC. |
-| **Kernel** | – | Kommt vom Host — im LXC nichts zu tun. |
+| **Proxmox-Host-Updates** | gelegentlich | Laufen auf dem Host, nicht im LXC. Auf dem VServer kümmert sich der Anbieter darum. |
+| **Kernel** | nach Kernel-Updates | LXC: kommt vom Host, nichts zu tun. VServer: Neustart nötig, siehe [Automatischer Neustart](#automatischer-neustart-nur-vserver). |
+
+#### Automatischer Neustart (nur VServer)
+
+Auf dem VServer hast du einen eigenen Kernel. Nach einem Kernel-Update meldet `mc-os-update.sh` den nötigen Neustart **einmalig** — als Hinweis in „Host: Sicherheitsupdates installiert" oder als eigene Meldung „Host: Neustart empfohlen". Ein `reboot` genügt — der Minecraft-Server startet danach von selbst, und der Watchdog lässt ihm dafür genug Zeit. Wer das nicht von Hand machen will, ergänzt in `crontab -e`:
+
+```cron
+# Nur VServer: sonntags um 06:00 neu starten, falls ein Neustart ansteht
+0 6 * * 0 [ -f /var/lib/minecraft-guide/reboot-pending ] && /sbin/shutdown -r now
+```
+
+Die Datei legt `mc-os-update.sh` an, sobald es einen Neustart meldet, und entfernt sie wieder, wenn keiner mehr nötig ist. 06:00 liegt bewusst hinter Backup und Updates. In der LXC ist das nicht nötig — dort kommt der Kernel vom Host.
 
 ### ntfy-Meldungen
 
@@ -731,7 +824,7 @@ Die Zeile muss `-security` (Ubuntu) bzw. `Debian-Security` (Debian) enthalten. W
 | `Crossplay: Server DOWN` | Server weg, automatischer Neustart hat nicht geholfen. | **Ja** — Befehle stehen in der Nachricht |
 | `Crossplay: wieder online` | Nach einem Ausfall wieder erreichbar. | Nein |
 | `Host: Sicherheitsupdates installiert` | Sicherheitsupdates eingespielt. | Nur falls ein Neustart-Hinweis dabeisteht |
-| `Host: Neustart empfohlen` | Bibliotheken aktualisiert. | Bei Gelegenheit `reboot` |
+| `Host: Neustart empfohlen` | Kernel oder Bibliotheken aktualisiert, kommt einmal pro Anlass. | Bei Gelegenheit `reboot` |
 | `Host: OS-Update Problem` | Sicherheitsupdates liefen nicht sauber durch. | Befehle stehen in der Nachricht |
 
 ### ntfy absichern
@@ -747,12 +840,12 @@ Ein öffentliches `ntfy.sh`-Topic kann von **jedem** gelesen und beschrieben wer
 | Problem | Lösung |
 |---|---|
 | Geyser stürzt mit `ExceptionInInitializerError` ab | Paper-Version zu neu für Geyser — auf der gepinnten Version bleiben, bis Geyser nachzieht |
-| Bedrock-Spieler kommen nicht rein, Java-Spieler schon | **UDP** 19132 in `ufw` und im Router prüfen; im Log muss `Started Geyser on UDP port 19132` stehen |
+| Bedrock-Spieler kommen nicht rein, Java-Spieler schon | **UDP** 19132 in `ufw` und im Router bzw. in der Firewall des Anbieters prüfen; im Log muss `Started Geyser on UDP port 19132` stehen |
 | Bedrock-Spieler werden beim Chatten gekickt | `enforce-secure-profile=false` in `server.properties` prüfen |
 | `/linkaccount` ist unbekannt | `enable-own-linking: true` und `floodgate-sqlite-database.jar` in `plugins/floodgate/` ([Schritt 14](#schritt-14--floodgate-kontoverknüpfung)) |
 | Gamerule ist unbekannt | Seit 1.21.11 gelten neue Namen — `/gamerule ` tippen, Tab-Vervollständigung zeigt sie |
 | Plugin lädt nicht | `file datei.jar` zeigt `HTML`/`ASCII text` statt `Java archive data`/`Zip archive data` → war eine Fehlerseite, Link neu kopieren; sonst prüfen, ob das Plugin die Paper-Version unterstützt |
-| Von außen kommt niemand rein | Port-Forwarding und feste IP prüfen; CGNAT siehe [Weitere Empfehlungen](#weitere-empfehlungen) |
+| Von außen kommt niemand rein | Port-Forwarding und feste IP prüfen; CGNAT siehe [Weitere Empfehlungen](#weitere-empfehlungen) · VServer: `ufw status` und die Firewall im Kundenmenü des Anbieters prüfen |
 | `apt`-Befehl meldet „could not get lock" | Gerade läuft ein anderer apt-Vorgang (z.B. `mc-os-update.sh` oder der tägliche Paketlisten-Abgleich) — kurz warten und erneut versuchen |
 | `journalctl`-Zeile endet mit `>` | Nur abgeschnitten (Pager) — `q` zum Verlassen, oder `--no-pager` anhängen |
 
@@ -801,9 +894,9 @@ Download: [WorldEdit auf Hangar](https://hangar.papermc.io/EngineHub/WorldEdit/v
 
 ## Weitere Empfehlungen
 
-1. **DDNS für Freunde von außerhalb** (DuckDNS, FRITZ!Box MyFRITZ!), falls sich die öffentliche IP ändert.
-2. **CGNAT/DS-Lite prüfen**, falls Port-Forwarding gar nicht ankommt: öffentliche IP mit der WAN-IP des Routers vergleichen; `100.64.x.x` = CGNAT. Lösung: echte IPv4 beim Provider anfragen, IPv6 nutzen, oder Tailscale/ZeroTier.
-3. **Proxmox-Snapshot als zweite Sicherheitsleine** vor größeren Eingriffen: `pct snapshot <CTID> vor-update`, im Notfall `pct rollback <CTID> vor-update`. Zusätzlich einen wöchentlichen `vzdump` einrichten.
-4. **Off-Site-Backup:** Die Backups liegen sonst nur im selben LXC. Per `rsync`/`rclone` nachts aufs NAS oder in die Cloud kopieren.
-5. **RAM und CPU sparen:** `view-distance` und `simulation-distance` in `server.properties` reduzieren (z.B. 8 und 6) und `-Xmx` im Service zum LXC passend setzen.
+1. **Nur zu Hause – DDNS für Freunde von außerhalb** (DuckDNS, FRITZ!Box MyFRITZ!), falls sich die öffentliche IP ändert.
+2. **Nur zu Hause – CGNAT/DS-Lite prüfen**, falls Port-Forwarding gar nicht ankommt: öffentliche IP mit der WAN-IP des Routers vergleichen; `100.64.x.x` = CGNAT. Lösung: echte IPv4 beim Provider anfragen, IPv6 nutzen, oder Tailscale/ZeroTier.
+3. **Proxmox-Snapshot als zweite Sicherheitsleine** vor größeren Eingriffen: `pct snapshot <CTID> vor-update`, im Notfall `pct rollback <CTID> vor-update`. Zusätzlich einen wöchentlichen `vzdump` einrichten. Auf dem VServer: Snapshots im Kundenmenü bzw. die Backup-Option des Anbieters.
+4. **Off-Site-Backup:** Die Backups liegen sonst nur im selben LXC. Per `rsync`/`rclone` nachts aufs NAS oder in die Cloud kopieren. Auf dem VServer besonders wichtig — fällt er aus oder wird gekündigt, sind die Backups mit weg. Am einfachsten holt ein Rechner oder NAS zu Hause sie nachts ab, dann braucht der VServer keine Zugangsdaten für dein Heimnetz: `rsync -a root@DEINE-SERVER-IP:/home/minecraft/backups/ /pfad/zu/minecraft-backups/`
+5. **RAM und CPU sparen:** `view-distance` und `simulation-distance` in `server.properties` reduzieren (z.B. 8 und 6) und `-Xmx` im Service zum RAM passend setzen.
 6. **Konsolen-Clients (Xbox/PlayStation/Switch)** können keine eigene Server-Adresse eintragen — nur Handy, Tablet und Windows. Vorher einplanen, falls die Familie auf Konsole spielt.

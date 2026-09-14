@@ -21,10 +21,28 @@ mc_log "$OUT"
 
 UPG="$(echo "$OUT" | grep -iE 'Packages that will be upgraded:' | sed 's/.*upgraded: //I' | tr -s ' ')"
 
+# Neustart noetig? Ubuntu legt dafuer /var/run/reboot-required an, Debian nicht.
+# Deshalb zusaetzlich pruefen, ob ein neuerer Kernel installiert ist als der
+# laufende (VServer). In einer LXC liegt kein Kernel unter /boot - der kommt
+# dort vom Host, die Pruefung greift dann nicht.
+REBOOT_KEY=""
+[ -f /var/run/reboot-required ] && REBOOT_KEY="lib-$(stat -c %Y /var/run/reboot-required)"
+NEWEST_KERNEL="$(ls -1 /boot/vmlinuz-* 2>/dev/null | sed 's#^/boot/vmlinuz-##' | sort -V | tail -1)"
+if [ -n "$NEWEST_KERNEL" ] && [ "$NEWEST_KERNEL" != "$(uname -r)" ]; then
+  REBOOT_KEY="${REBOOT_KEY:+$REBOOT_KEY }kernel-$NEWEST_KERNEL"
+fi
+
 REBOOT_NOTE=""
-[ -f /var/run/reboot-required ] && REBOOT_NOTE="
+[ -n "$REBOOT_KEY" ] && REBOOT_NOTE="
 
 Hinweis: Ein Neustart wird empfohlen (Kernel/Lib aktualisiert). Wenn es passt: reboot"
+
+# Die eigenstaendige Neustart-Meldung nur einmal pro Anlass, nicht jede Nacht.
+# Die Datei existiert, solange ein gemeldeter Neustart ansteht - ein optionaler
+# Auto-Reboot per Cron (siehe Anleitungen, "Automatischer Neustart") prueft sie.
+REBOOT_MARK="/var/lib/minecraft-guide/reboot-pending"
+mkdir -p "$(dirname "$REBOOT_MARK")"
+[ -z "$REBOOT_KEY" ] && rm -f "$REBOOT_MARK"
 
 if [ "$RC" -ne 0 ]; then
   mc_notify "high" "warning" "Host: OS-Update Problem" \
@@ -32,7 +50,9 @@ if [ "$RC" -ne 0 ]; then
 elif [ -n "$UPG" ]; then
   mc_notify "low" "white_check_mark,package" "Host: Sicherheitsupdates installiert" \
     "Automatisch aktualisiert: $UPG$REBOOT_NOTE"
-elif [ -n "$REBOOT_NOTE" ]; then
+  [ -n "$REBOOT_KEY" ] && echo "$REBOOT_KEY" > "$REBOOT_MARK"
+elif [ -n "$REBOOT_KEY" ] && [ "$REBOOT_KEY" != "$(cat "$REBOOT_MARK" 2>/dev/null)" ]; then
   mc_notify "default" "warning" "Host: Neustart empfohlen" "$REBOOT_NOTE"
+  echo "$REBOOT_KEY" > "$REBOOT_MARK"
 fi
 # sonst: nichts Neues -> keine Nachricht

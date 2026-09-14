@@ -37,6 +37,20 @@ server_is_up() {
   fi
 }
 
+# true, wenn der Dienst aktiv ist, aber erst vor weniger als MC_START_TIMEOUT
+# Sekunden gestartet wurde - dann faehrt er vermutlich noch hoch (z.B. nach
+# einem Reboot oder direkt nach dem Backup) und soll nicht neu gestartet werden.
+# Nutzt die Uhrzeit statt der Uptime, weil die in einer LXC nicht zum Host passt.
+service_starting() {
+  systemctl is-active --quiet "$MC_SERVICE" || return 1
+  local since age
+  since=$(systemctl show --timestamp=unix -p ActiveEnterTimestamp --value "$MC_SERVICE" 2>/dev/null)
+  since=${since#@}
+  case "$since" in ''|*[!0-9]*) return 1 ;; esac
+  age=$(( $(date +%s) - since ))
+  [ "$age" -ge 0 ] && [ "$age" -lt "${MC_START_TIMEOUT:-120}" ]
+}
+
 # Wartungs-Flag setzen/loesen. Verhindert, dass der Watchdog waehrend
 # Backup/Update Fehlalarm schlaegt.
 maintenance_on() { touch "$MC_LOCKFILE"; }

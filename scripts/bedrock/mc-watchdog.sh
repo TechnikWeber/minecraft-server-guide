@@ -22,6 +22,9 @@ if server_is_up; then
   exit 0
 fi
 
+# Dienst gerade erst gestartet, Port noch nicht offen -> faehrt noch hoch
+if service_starting; then exit 0; fi
+
 # Server ist nicht aktiv -> Reparaturversuch
 systemctl reset-failed "$MC_SERVICE" 2>/dev/null
 systemctl start "$MC_SERVICE" 2>/dev/null
