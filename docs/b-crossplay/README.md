@@ -127,7 +127,8 @@ echo '/swapfile none swap sw 0 0' >> /etc/fstab
 | [Schritt 16](#schritt-16--firewall-und-port-forwarding) – Firewall | Port-Forwarding im Router | kein Router; SSH mit `ufw limit`, ggf. Firewall des Anbieters |
 | [Whitelist](#stufe-1--wer-darf-rein-whitelist) | sinnvoll | **dringend empfohlen** — der Server ist für die ganze Welt erreichbar |
 | Snapshots | `pct snapshot` | im Kundenmenü des Anbieters |
-| Kernel | kommt vom Host | eigener Kernel — nach Updates gelegentlich neu starten, siehe [Automatischer Neustart](#automatischer-neustart-nur-vserver) |
+| Kernel | kommt vom Host | eigener Kernel — **automatischer Neustart empfohlen**, siehe [Automatischer Neustart](#automatischer-neustart-nur-vserver) |
+| Überwachung | Watchdog + ntfy | zusätzlich ein [externer Uptime-Check](#externer-uptime-check), weil ein ausgefallener VServer selbst nichts mehr melden kann |
 | Backups | liegen im LXC | liegen auf dem VServer — [Off-Site-Backup](#weitere-empfehlungen) einplanen |
 | Spieler verbinden sich mit | DDNS-Name oder IP des Anschlusses | IP des VServers (oder eigene Domain mit A-Record) |
 
@@ -468,7 +469,12 @@ crontab -e
 
 # Paper-Builds, Geyser und Floodgate um 05:00 (Neustart nur, wenn wirklich etwas neu ist)
 0 5 * * * /usr/local/bin/mc-crossplay-update.sh >> /var/log/mc-update.log 2>&1
+
+# Nur VServer: sonntags um 06:00 neu starten, falls ein Neustart ansteht
+0 6 * * 0 [ -f /var/lib/minecraft-guide/reboot-pending ] && /sbin/shutdown -r now
 ```
+
+> **Auf dem VServer:** die letzte Zeile mit eintragen, Hintergrund: [Automatischer Neustart](#automatischer-neustart-nur-vserver). In der LXC weglassen.
 
 ### Was automatisch läuft und was nicht
 
@@ -476,7 +482,7 @@ crontab -e
 |---|---|---|
 | Watchdog | ✅ alle 5 Minuten | Startet einen abgestürzten Server neu, wartet bis Paper wirklich bereit ist, meldet nur Zustandswechsel |
 | Backup | ✅ täglich 03:30 | Welt samt Nether und End, Paper- und Plugin-Configs, Daten von LuckPerms, GriefPrevention, CoreProtect und Essentials, Floodgate-Schlüssel · aufbewahrt 7 Tage (`BACKUP_KEEP_DAYS` in der Config) |
-| OS-Sicherheitsupdates | ✅ täglich 04:00 | Neustart wird nur **gemeldet**, nicht erzwungen — auf dem VServer optional automatisch, siehe [Automatischer Neustart](#automatischer-neustart-nur-vserver) |
+| OS-Sicherheitsupdates | ✅ täglich 04:00 | Neustart wird nur **gemeldet**, nicht erzwungen — auf dem VServer empfohlen: automatisch sonntags, siehe [Automatischer Neustart](#automatischer-neustart-nur-vserver) |
 | Geyser + Floodgate | ✅ täglich 05:00 | Müssen mit Bedrock-Client-Updates Schritt halten |
 | Paper-Builds **innerhalb** von 26.1.2 | ✅ täglich 05:00 | Patch-Builds sind sicher · vorher Backup, bei Fehlstart automatischer Rollback |
 | Paper-Versionssprung, ViaVersion/ViaBackwards, übrige Plugins | ❌ manuell | Bewusste Entscheidung nötig — siehe [Paper und Plugins von Hand aktualisieren](#paper-und-plugins-von-hand-aktualisieren) |
@@ -797,18 +803,30 @@ Die Zeile muss `-security` (Ubuntu) bzw. `Debian-Security` (Debian) enthalten. W
 | **Distro-Wechsel** (Ubuntu 24.04 → 26.04, Debian 13 → 14) | alle paar Jahre | Bewusst und mit Snapshot vorher (Proxmox: `pct snapshot <CTID> vor-upgrade`, VServer: im Kundenmenü des Anbieters); bei Ubuntu über `do-release-upgrade`, bei Debian über die Paketquellen auf den neuen Codenamen. |
 | **Support-Ende der Distro** | nach ca. 5 Jahren | Ubuntu: **Ubuntu Pro** ist für Privatnutzung kostenlos und verlängert die Sicherheitsupdates um Jahre. Debian: Die LTS-Phase läuft automatisch über die normalen Paketquellen; danach gibt es nur noch kostenpflichtiges ELTS — rechtzeitig auf die nächste Version wechseln. |
 | **Proxmox-Host-Updates** | gelegentlich | Laufen auf dem Host, nicht im LXC. Auf dem VServer kümmert sich der Anbieter darum. |
-| **Kernel** | nach Kernel-Updates | LXC: kommt vom Host, nichts zu tun. VServer: Neustart nötig, siehe [Automatischer Neustart](#automatischer-neustart-nur-vserver). |
+| **Kernel** | nach Kernel-Updates | LXC: kommt vom Host, nichts zu tun. VServer: Neustart nötig, empfohlen automatisch, siehe [Automatischer Neustart](#automatischer-neustart-nur-vserver). |
 
 #### Automatischer Neustart (nur VServer)
 
-Auf dem VServer hast du einen eigenen Kernel. Nach einem Kernel-Update meldet `mc-os-update.sh` den nötigen Neustart **einmalig** — als Hinweis in „Host: Sicherheitsupdates installiert" oder als eigene Meldung „Host: Neustart empfohlen". Ein `reboot` genügt — der Minecraft-Server startet danach von selbst, und der Watchdog lässt ihm dafür genug Zeit. Wer das nicht von Hand machen will, ergänzt in `crontab -e`:
+Auf dem VServer hast du einen eigenen Kernel, und ein Kernel-Update wirkt erst nach einem Neustart. **Empfohlen** ist deshalb die Neustart-Zeile aus [Schritt 23](#schritt-23--cronjobs). Sie startet den Server **sonntags um 06:00** neu, aber nur, wenn wirklich ein Neustart ansteht:
 
 ```cron
-# Nur VServer: sonntags um 06:00 neu starten, falls ein Neustart ansteht
 0 6 * * 0 [ -f /var/lib/minecraft-guide/reboot-pending ] && /sbin/shutdown -r now
 ```
 
-Die Datei legt `mc-os-update.sh` an, sobald es einen Neustart meldet, und entfernt sie wieder, wenn keiner mehr nötig ist. 06:00 liegt bewusst hinter Backup und Updates. In der LXC ist das nicht nötig — dort kommt der Kernel vom Host.
+- Die Datei legt `mc-os-update.sh` an, sobald es einen nötigen Neustart meldet (als Hinweis in „Host: Sicherheitsupdates installiert" oder als eigene Meldung „Host: Neustart empfohlen"). Nach dem Neustart entfernt es sie wieder.
+- **Sonntag 06:00** liegt bewusst nach Backup und Updates, damit nie eine laufende Installation abgebrochen wird — und morgens spielt kaum jemand. Täglich direkt nach dem Update wäre riskanter.
+- Der Minecraft-Server startet danach von selbst, der Watchdog lässt ihm Zeit zum Hochfahren.
+- Lieber selbst entscheiden? Zeile weglassen und nach der ntfy-Meldung zu einer ruhigen Zeit `reboot` ausführen. Danach prüfen: `journalctl -u minecraft-paper -n 20` muss `Done (` zeigen.
+
+In der LXC ist das nicht nötig — dort kommt der Kernel vom Host.
+
+##### Externer Uptime-Check
+
+Watchdog und ntfy laufen **auf** dem Server. Fällt der ganze VServer aus (Neustart hängt, Störung beim Anbieter), kann er selbst nichts mehr melden. Ein kostenloser Dienst, der **von außen** prüft, schließt diese Lücke — z.B. **UptimeRobot** (Free-Plan für private Projekte, Prüfung alle 5 Minuten, Benachrichtigung per E-Mail):
+
+- Monitor-Typ **Port** auf die IP des VServers, Port **25565**. Damit ist nicht nur der Server geprüft, sondern auch, dass Paper wirklich antwortet.
+
+Wer zu Hause ohnehin einen Server hat: **Uptime Kuma** kann dasselbe und benachrichtigt auch direkt per ntfy.
 
 ### ntfy-Meldungen
 
