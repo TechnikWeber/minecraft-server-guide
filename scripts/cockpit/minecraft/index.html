@@ -4,20 +4,7 @@
 <meta charset="utf-8">
 <title>Minecraft</title>
 <script src="../base1/cockpit.js"></script>
-<style>
-  body { font-family: system-ui, sans-serif; margin: 24px; color: #151515; background: #fff; }
-  h1 { font-size: 1.5em; margin: 0 0 16px; }
-  .status { font-size: 1.1em; margin-bottom: 16px; }
-  .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; vertical-align: middle; background: #999; }
-  .active .dot { background: #3e8635; } .failed .dot { background: #c9190b; } .activating .dot, .deactivating .dot { background: #f0ab00; }
-  button { font-size: 1em; padding: 10px 18px; margin: 0 8px 8px 0; border-radius: 4px; border: 1px solid #8a8d90; background: #f0f0f0; cursor: pointer; }
-  button.primary { background: #0066cc; color: #fff; border-color: #0066cc; }
-  button.danger { background: #c9190b; color: #fff; border-color: #c9190b; }
-  button:disabled { opacity: .5; cursor: wait; }
-  #msg { margin: 8px 0 16px; min-height: 1.2em; }
-  h2 { font-size: 1.1em; margin: 24px 0 8px; }
-  pre { background: #f5f5f5; padding: 12px; overflow-x: auto; white-space: pre-wrap; font-size: .85em; max-height: 50vh; }
-</style>
+<link rel="stylesheet" href="index.css">
 </head>
 <body>
 <h1>Minecraft-Server</h1>
@@ -30,50 +17,6 @@
 <pre id="errors">wird geladen …</pre>
 <h2>Letzte Log-Zeilen</h2>
 <pre id="log">wird geladen …</pre>
-<script>
-const UNIT = "minecraft-paper.service";
-const $ = id => document.getElementById(id);
-const STATES = { active: "läuft", inactive: "gestoppt", failed: "abgestürzt", activating: "startet …", deactivating: "fährt herunter …" };
-
-function run(args) { return cockpit.spawn(args, { err: "message" }); }
-
-function refresh() {
-  run(["systemctl", "show", UNIT, "-p", "ActiveState", "-p", "ActiveEnterTimestamp", "--value"]).then(out => {
-    const [state, since] = out.trim().split("\n");
-    $("status").className = "status " + state;
-    $("statustext").textContent = (STATES[state] || state) + (state === "active" && since ? " seit " + since : "");
-  }).catch(e => { $("statustext").textContent = "Status unbekannt: " + e.message; });
-  run(["journalctl", "-u", UNIT, "--since", "-24h", "-o", "short-iso", "--no-pager"]).then(out => {
-    const lines = out.split("\n").filter(l => /ERROR|Exception|WARN|crash/i.test(l) && !/spark|ViaVersion\] The Vanilla protocol/.test(l));
-    $("errors").textContent = lines.length ? lines.slice(-40).join("\n") : "Keine Fehler – alles gut.";
-  }).catch(e => { $("errors").textContent = "Log nicht lesbar: " + e.message; });
-  run(["journalctl", "-u", UNIT, "-n", "40", "-o", "cat", "--no-pager"]).then(out => { $("log").textContent = out; })
-    .catch(e => { $("log").textContent = "Log nicht lesbar: " + e.message; });
-}
-
-const armed = {};
-function action(verb, btn, label) {
-  if (!armed[verb]) {   // erster Klick: nachfragen
-    armed[verb] = true; btn.textContent = "Wirklich? Nochmal klicken";
-    setTimeout(() => { armed[verb] = false; btn.textContent = label; }, 5000);
-    return;
-  }
-  armed[verb] = false; btn.textContent = label;
-  document.querySelectorAll("button").forEach(b => b.disabled = true);
-  $("msg").textContent = "Wird ausgeführt …";
-  run(["systemctl", "--no-ask-password", verb, UNIT]).then(() => {
-    $("msg").textContent = verb === "stop"
-      ? "Gestoppt. Achtung: Der Watchdog startet den Server nach spätestens 5 Minuten wieder."
-      : "Erledigt. Der Server braucht ca. 40 Sekunden, bis man wieder rein kann.";
-  }).catch(e => { $("msg").textContent = "Fehlgeschlagen: " + e.message; })
-    .finally(() => { document.querySelectorAll("button").forEach(b => b.disabled = false); refresh(); });
-}
-
-[["restart", "Neu starten"], ["start", "Starten"], ["stop", "Stoppen"]].forEach(([verb, label]) => {
-  const b = $(verb); b.onclick = () => action(verb, b, label);
-});
-refresh();
-setInterval(refresh, 10000);
-</script>
+<script src="index.js"></script>
 </body>
 </html>

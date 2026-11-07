@@ -1,0 +1,12 @@
+body { font-family: system-ui, sans-serif; margin: 24px; color: #151515; background: #fff; }
+h1 { font-size: 1.5em; margin: 0 0 16px; }
+.status { font-size: 1.1em; margin-bottom: 16px; }
+.dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; vertical-align: middle; background: #999; }
+.active .dot { background: #3e8635; } .failed .dot { background: #c9190b; } .activating .dot, .deactivating .dot { background: #f0ab00; }
+button { font-size: 1em; padding: 10px 18px; margin: 0 8px 8px 0; border-radius: 4px; border: 1px solid #8a8d90; background: #f0f0f0; cursor: pointer; }
+button.primary { background: #0066cc; color: #fff; border-color: #0066cc; }
+button.danger { background: #c9190b; color: #fff; border-color: #c9190b; }
+button:disabled { opacity: .5; cursor: wait; }
+#msg { margin: 8px 0 16px; min-height: 1.2em; }
+h2 { font-size: 1.1em; margin: 24px 0 8px; }
+pre { background: #f5f5f5; padding: 12px; overflow-x: auto; white-space: pre-wrap; font-size: .85em; max-height: 50vh; }
