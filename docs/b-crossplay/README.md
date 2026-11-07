@@ -814,17 +814,13 @@ journalctl -u minecraft-paper -f --no-pager    # Live-Log, Ctrl+C zum Beenden
 
 > Ein nur mit `systemctl stop` angehaltener Server wird vom Watchdog nach spätestens 5 Minuten wieder gestartet. Für kurze Arbeiten das [Wartungs-Flag](#wartungs-flag) setzen, für längere Pausen die Watchdog-Zeile in `crontab -e` auskommentieren.
 
-### Neustart aus dem Chat
+### Neustart aus dem Chat (optional)
 
 Ab Werk startet systemd den Server nur nach einem Absturz neu — ein `/stop` oder `/restart` im Spiel lässt ihn aus, bis der Watchdog nach bis zu 5 Minuten eingreift. Mit einer kleinen Ergänzung kommt der Server immer sofort wieder:
 
 ```bash
 mkdir -p /etc/systemd/system/minecraft-paper.service.d
-cat > /etc/systemd/system/minecraft-paper.service.d/restart.conf <<'EOF'
-[Service]
-Restart=always
-RestartSec=5
-EOF
+cp /opt/minecraft-server-guide/systemd/minecraft-paper.service.d/restart.conf /etc/systemd/system/minecraft-paper.service.d/
 systemctl daemon-reload
 ```
 
@@ -832,82 +828,46 @@ Danach reicht OPs **`/restart`** (oder `/stop`) im Chat — nach etwa 40 Sekunde
 
 **Auslastung im Spiel:** Paper bringt **spark** mit — `/spark health` (CPU, RAM, TPS), `/spark tps`, `/spark profiler` (Analyse als Weblink). Nur für OPs.
 
-### Weboberfläche für den Notfall: Cockpit
+### Weboberfläche für den Notfall: Cockpit (optional)
 
-Hängt der Server so, dass auch der Chat nicht mehr geht, hilft [Cockpit](https://cockpit-project.org/) — die offizielle Server-Weboberfläche von Debian/Ubuntu: Buttons für Start/Stopp/Neustart des Dienstes, CPU-/RAM-/Plattenanzeige und die Logs. Für alle OPs gibt es einen gemeinsamen Benutzer, der **nur** den Minecraft-Dienst steuern und Logs lesen darf — keine Root-Rechte.
+Hängt der Server so, dass auch der Chat nicht mehr geht, hilft eine kleine Weboberfläche auf Basis von [Cockpit](https://cockpit-project.org/) (offizielles Debian/Ubuntu-Paket). Für alle OPs gibt es einen **gemeinsamen Benutzer `mcadmin`**, der nur den Minecraft-Dienst steuern und Logs lesen darf — keine Root-Rechte, kein SSH. Nach dem Login gibt es links die Seite **Minecraft**: Status, Buttons **Neu starten / Starten / Stoppen** (Sicherheitsabfrage per zweitem Klick), Fehler der letzten 24 Stunden und die letzten Log-Zeilen. Daneben zeigt Cockpit unter *Übersicht* CPU, RAM und Platte.
 
-```bash
-apt install -y --no-install-recommends cockpit-ws cockpit-system cockpit-bridge polkitd
-systemctl enable --now cockpit.socket
-
-useradd -m -s /bin/bash -c "Minecraft-Admin (Cockpit)" mcadmin
-usermod -aG systemd-journal mcadmin      # darf Logs lesen
-passwd mcadmin                           # langes Passwort, z.B. 4 x 5 Zeichen mit Bindestrichen
-echo "DenyUsers mcadmin" > /etc/ssh/sshd_config.d/10-deny-mcadmin.conf   # kein SSH fuer mcadmin
-
-cat > /etc/polkit-1/rules.d/50-mcadmin-minecraft.rules <<'EOF'
-// mcadmin darf nur den Minecraft-Dienst starten/stoppen/neu starten, sonst nichts.
-polkit.addRule(function(action, subject) {
-  if (action.id == "org.freedesktop.systemd1.manage-units" && subject.user == "mcadmin") {
-    var unit = action.lookup("unit"), verb = action.lookup("verb");
-    if (unit == "minecraft-paper.service" && (verb == "start" || verb == "stop" || verb == "restart")) {
-      return polkit.Result.YES;
-    }
-    return polkit.Result.NO;
-  }
-});
-EOF
-chmod 644 /etc/polkit-1/rules.d/50-mcadmin-minecraft.rules   # polkit muss sie lesen koennen!
-systemctl restart polkit
-
-ufw allow 9090/tcp
-```
-
-**Schutz gegen Passwort-Rater mit fail2ban** — sperrt eine Adresse nach 5 falschen Passwörtern für 1 Stunde, und zwar **nur für Port 9090**:
+Alles Nötige liegt in [`scripts/cockpit/`](../../scripts/cockpit/), eingerichtet wird es mit einem Befehl:
 
 ```bash
-apt install -y fail2ban python3-systemd
-
-cat > /etc/fail2ban/filter.d/cockpit.conf <<'EOF'
-[Definition]
-failregex = pam_unix\(cockpit:auth\): authentication failure;.*rhost=(?:::ffff:)?<HOST>(?:\s|$)
-ignoreregex =
-EOF
-
-cat > /etc/fail2ban/jail.d/cockpit.local <<'EOF'
-[cockpit]
-enabled      = true
-backend      = systemd
-journalmatch = SYSLOG_IDENTIFIER=cockpit-session
-filter       = cockpit
-port         = 9090
-banaction    = nftables-multiport
-maxretry     = 5
-findtime     = 10m
-bantime      = 1h
-EOF
-systemctl restart fail2ban
-fail2ban-client status cockpit
+bash /opt/minecraft-server-guide/scripts/cockpit/setup-cockpit.sh
 ```
 
-> **Nicht `ufw limit 9090/tcp` nehmen:** Das zählt jede Verbindung, und ein Browser öffnet beim Laden von Cockpit mehr als die erlaubten 6 in 30 Sekunden — die Seite lädt dann von außen nicht. **Nicht `banaction = ufw` nehmen:** Diese Aktion sperrt die Adresse für **alle** Ports, also auch SSH und Minecraft — bei Spielern aus demselben Heimnetz womöglich die gemeinsame öffentliche IP. Gesperrte Adresse wieder freigeben: `fail2ban-client set cockpit unbanip <IP>`.
+Das Script ist mehrfach ausführbar und gibt am Ende Adresse, Benutzer und das **zufällig erzeugte Passwort** aus (zusätzlich in `/root/cockpit-mcadmin-passwort.txt`). Neues Passwort: `passwd mcadmin`.
 
-Testen: `su -s /bin/bash mcadmin -c "systemctl --no-ask-password restart cron"` muss **Access denied** melden, dieselbe Zeile mit `minecraft-paper` muss klappen. root darf sich an Cockpit ab Werk nicht anmelden (`/etc/cockpit/disallowed-users`).
+| Was das Script macht | Datei im Repo |
+|---|---|
+| Cockpit schlank installieren (nur Übersicht, Dienste, Logs), Port 9090 | – |
+| Benutzer `mcadmin` anlegen, Logs lesen erlauben, SSH verbieten (`DenyUsers mcadmin`) | – |
+| Rechte-Regel: `mcadmin` darf **nur** `minecraft-paper` starten/stoppen/neu starten | `50-mcadmin-minecraft.rules` → `/etc/polkit-1/rules.d/` |
+| Cockpit-Seite „Minecraft" | `minecraft/` → `/usr/share/cockpit/minecraft/` |
+| fail2ban: 5 falsche Passwörter in 10 Min. → 1 Std. Sperre, **nur Port 9090** | `fail2ban-cockpit-filter.conf`, `fail2ban-cockpit-jail.local` |
+| `ufw allow 9090/tcp` (falls ufw aktiv) und Selbsttest | – |
 
-**Eigene Seite „Minecraft" mit Buttons:** Ohne Admin-Modus blendet Cockpit die Start/Stopp-Buttons unter *Dienste* aus — und der Admin-Modus würde volle Root-Rechte per `sudo` verlangen (Meldung „Turn on administrative access" → „No such file: sudo"). Deshalb bringt dieses Repo eine kleine Cockpit-Seite mit, die mit den eingeschränkten Rechten von `mcadmin` auskommt: Status, **Neu starten / Starten / Stoppen** (Sicherheitsabfrage per zweitem Klick), Fehler der letzten 24 Stunden und die letzten Log-Zeilen.
+Aufruf: `https://<Server-IP>:9090`. Für OPs von außen im Router **TCP** 9090 freigeben → `https://DEINE-DOMAIN:9090`. Beim ersten Aufruf warnt der Browser vor dem selbst ausgestellten Zertifikat — einmal „trotzdem fortfahren".
 
-```bash
-mkdir -p /usr/share/cockpit/minecraft
-install -m 644 /opt/minecraft-server-guide/cockpit/minecraft/* /usr/share/cockpit/minecraft/
-```
-
-Aufruf: `https://<Server-IP>:9090`, für OPs von außen im Router **TCP** 9090 freigeben → `https://DEINE-DOMAIN:9090`. Beim ersten Aufruf warnt der Browser vor dem selbst ausgestellten Zertifikat — einmal „trotzdem fortfahren". Nach dem Login links auf **Minecraft**. Den Hinweis „Eingeschränkter Zugriff" einfach ignorieren — genau so ist es gewollt.
-
-> Ein über die Seite **gestoppter** Server bleibt nicht lange aus: Der Watchdog startet ihn nach spätestens 5 Minuten wieder. Für längere Pausen per SSH das [Wartungs-Flag](#wartungs-flag) setzen.
-
-> **Fehler finden:** Die Seite „Minecraft" filtert `ERROR`, `Exception` und `WARN` selbst heraus. Der Prioritätsfilter „Fehler" unter *Protokolle* hilft dagegen nicht: Paper schreibt alles mit gleicher Priorität ins Journal.
+> **„Eingeschränkter Zugriff" ist gewollt.** Cockpits Knopf „Administrativen Zugriff einschalten" würde volle Root-Rechte per `sudo` verlangen (Meldung „No such file: sudo") — genau das soll der gemeinsame Zugang nicht haben. Deshalb blendet Cockpit unter *Dienste* auch keine Start/Stopp-Buttons ein; dafür gibt es die Seite **Minecraft**.
 >
-> **Öffentlich oder nur per VPN?** Sicherer ist es, Port 9090 nicht freizugeben und von unterwegs per VPN (FRITZ!Box-VPN, Tailscale) ins Heimnetz zu gehen. Öffentlich ist es bequemer; dann sind ein langes Passwort, der eingeschränkte Benutzer und fail2ban Pflicht.
+> Ein über die Seite **gestoppter** Server bleibt nicht lange aus: Der Watchdog startet ihn nach spätestens 5 Minuten wieder. Für längere Pausen per SSH das [Wartungs-Flag](#wartungs-flag) setzen.
+>
+> **Fallen, die das Script vermeidet:** Nicht `ufw limit 9090/tcp` — ein Browser öffnet beim Laden mehr als die erlaubten 6 Verbindungen in 30 Sekunden, die Seite lädt dann von außen nicht. Nicht `banaction = ufw` bei fail2ban — das sperrt die Adresse für **alle** Ports, also auch SSH und Minecraft, bei Spielern aus demselben Heimnetz womöglich die gemeinsame öffentliche IP. Die polkit-Regel braucht Rechte **644**, sonst kann polkit sie nicht lesen. Gesperrte Adresse freigeben: `fail2ban-client set cockpit unbanip <IP>`.
+>
+> **Öffentlich oder nur per VPN?** Sicherer ist es, Port 9090 nicht freizugeben und von unterwegs per VPN (FRITZ!Box-VPN, Tailscale) ins Heimnetz zu gehen. Öffentlich ist es bequemer; langes Passwort, eingeschränkter Benutzer und fail2ban sind dann Pflicht — alle drei richtet das Script ein.
+
+**Vorlage für die OPs** (Passwort einsetzen):
+
+```
+🛠️ *Server-Notfall – nur für OPs*
+Server hängt? Im Chat: /restart → nach ca. 40 Sek. ist er wieder da. Auslastung: /spark health
+Gar nichts geht mehr? https://DEINE-DOMAIN:9090 öffnen (Zertifikats-Warnung → „Trotzdem fortfahren")
+Login: mcadmin / PASSWORT → links „Minecraft" → „Neu starten" (zweimal klicken), dann ca. 1 Minute warten.
+Hinweis „Eingeschränkter Zugriff" ignorieren. Nach 5 falschen Passwörtern 1 Stunde gesperrt (Minecraft geht weiter).
+```
 
 ### Wartungs-Flag
 

@@ -1,0 +1,14 @@
+# 5 falsche Passwoerter in 10 Minuten -> Adresse 1 Stunde fuer Cockpit gesperrt.
+# Ziel: /etc/fail2ban/jail.d/cockpit.local
+# banaction nftables-multiport sperrt NUR Port 9090. Nicht "ufw" nehmen - das
+# sperrt die Adresse fuer alle Ports (auch SSH und Minecraft).
+[cockpit]
+enabled      = true
+backend      = systemd
+journalmatch = SYSLOG_IDENTIFIER=cockpit-session
+filter       = cockpit
+port         = 9090
+banaction    = nftables-multiport
+maxretry     = 5
+findtime     = 10m
+bantime      = 1h

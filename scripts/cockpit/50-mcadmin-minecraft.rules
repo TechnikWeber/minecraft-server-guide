@@ -1,0 +1,11 @@
+// Cockpit-Benutzer "mcadmin" darf nur den Minecraft-Dienst starten, stoppen
+// und neu starten - sonst nichts. Ziel: /etc/polkit-1/rules.d/ (Rechte 644!).
+polkit.addRule(function(action, subject) {
+  if (action.id == "org.freedesktop.systemd1.manage-units" && subject.user == "mcadmin") {
+    var unit = action.lookup("unit"), verb = action.lookup("verb");
+    if (unit == "minecraft-paper.service" && (verb == "start" || verb == "stop" || verb == "restart")) {
+      return polkit.Result.YES;
+    }
+    return polkit.Result.NO;
+  }
+});

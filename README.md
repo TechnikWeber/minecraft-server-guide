@@ -27,12 +27,15 @@ docs/
   b-crossplay/README.md                      B – komplette Crossplay-Anleitung
   b-crossplay/spieler-anleitung.md           Anleitung zum Weitergeben an die Spieler
   b-crossplay/spieler-anleitung-discord.md   dieselbe als Discord-Nachrichten
+  b-crossplay/nachricht-erwachsene.md        Nachricht-Vorlage für Erwachsene/Freundeskreis
 scripts/
   common/mc-common.sh                        Gemeinsame Funktionen (ntfy, Health-Check, Wartungs-Flag)
+  common/mc-cmd                              Optional: Konsolen-Befehle per RCON (ohne Neustart)
   bedrock/                                   Backup, Update mit Rollback, Watchdog für A
-  crossplay/                                 Backup, Update mit Rollback, Watchdog für B
+  crossplay/                                 Backup, Update mit Rollback, Watchdog für B (+ optional Chunky-Fortschritt per ntfy)
+  cockpit/                                   Optional: Notfall-Weboberfläche mit Neustart-Buttons (setup-cockpit.sh)
   os/mc-os-update.sh                         OS-Sicherheitsupdates, für beide Wege gleich
-systemd/                                     Service-Units
+systemd/                                     Service-Units (+ optional restart.conf: Neustart aus dem Chat)
 config/                                      Config-Vorlagen und logrotate
 ```
 
