@@ -860,8 +860,37 @@ EOF
 chmod 644 /etc/polkit-1/rules.d/50-mcadmin-minecraft.rules   # polkit muss sie lesen koennen!
 systemctl restart polkit
 
-ufw limit 9090/tcp    # "limit" bremst Passwort-Rater: max. 6 Verbindungen in 30 s pro IP
+ufw allow 9090/tcp
 ```
+
+**Schutz gegen Passwort-Rater mit fail2ban** — sperrt eine Adresse nach 5 falschen Passwörtern für 1 Stunde, und zwar **nur für Port 9090**:
+
+```bash
+apt install -y fail2ban python3-systemd
+
+cat > /etc/fail2ban/filter.d/cockpit.conf <<'EOF'
+[Definition]
+failregex = pam_unix\(cockpit:auth\): authentication failure;.*rhost=(?:::ffff:)?<HOST>(?:\s|$)
+ignoreregex =
+EOF
+
+cat > /etc/fail2ban/jail.d/cockpit.local <<'EOF'
+[cockpit]
+enabled      = true
+backend      = systemd
+journalmatch = SYSLOG_IDENTIFIER=cockpit-session
+filter       = cockpit
+port         = 9090
+banaction    = nftables-multiport
+maxretry     = 5
+findtime     = 10m
+bantime      = 1h
+EOF
+systemctl restart fail2ban
+fail2ban-client status cockpit
+```
+
+> **Nicht `ufw limit 9090/tcp` nehmen:** Das zählt jede Verbindung, und ein Browser öffnet beim Laden von Cockpit mehr als die erlaubten 6 in 30 Sekunden — die Seite lädt dann von außen nicht. **Nicht `banaction = ufw` nehmen:** Diese Aktion sperrt die Adresse für **alle** Ports, also auch SSH und Minecraft — bei Spielern aus demselben Heimnetz womöglich die gemeinsame öffentliche IP. Gesperrte Adresse wieder freigeben: `fail2ban-client set cockpit unbanip <IP>`.
 
 Testen: `su -s /bin/bash mcadmin -c "systemctl --no-ask-password restart cron"` muss **Access denied** melden, dieselbe Zeile mit `minecraft-paper` muss klappen. root darf sich an Cockpit ab Werk nicht anmelden (`/etc/cockpit/disallowed-users`).
 
@@ -869,7 +898,7 @@ Aufruf: `https://<Server-IP>:9090`, für OPs von außen im Router **TCP** 9090 f
 
 > **Fehler finden:** Paper schreibt alles mit gleicher Priorität ins Journal — der Prioritätsfilter „Fehler" in Cockpit zeigt Paper-Fehler deshalb nicht. Stattdessen unter *Protokolle* nach `ERROR` oder `Exception` suchen (Textfeld).
 >
-> **Öffentlich oder nur per VPN?** Sicherer ist es, Port 9090 nicht freizugeben und von unterwegs per VPN (FRITZ!Box-VPN, Tailscale) ins Heimnetz zu gehen. Öffentlich ist es bequemer; dann sind ein langes Passwort, der eingeschränkte Benutzer und `ufw limit` Pflicht.
+> **Öffentlich oder nur per VPN?** Sicherer ist es, Port 9090 nicht freizugeben und von unterwegs per VPN (FRITZ!Box-VPN, Tailscale) ins Heimnetz zu gehen. Öffentlich ist es bequemer; dann sind ein langes Passwort, der eingeschränkte Benutzer und fail2ban Pflicht.
 
 ### Wartungs-Flag
 
