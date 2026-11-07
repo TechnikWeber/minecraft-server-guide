@@ -424,6 +424,8 @@ Chunks „on the fly" zu erzeugen ist der größte Lag-Verursacher bei Crossplay
 
 `/chunky pause` · `/chunky continue` · `/chunky progress` · `/chunky cancel`. Faustregel: Radius 3000 ≈ 6 × 6 km, reicht für die meisten privaten Server. Am besten laufen lassen, wenn niemand online ist.
 
+> **Mittelpunkt = Spawn:** Erst den Spawn festlegen (`/setworldspawn` am gewünschten Ort), dann mit dessen Koordinaten `/chunky center X Z`. Mit einer Browser-Karte wie [BlueMap](#karte-im-browser-bluemap) unbedingt `min-inhabited-time` setzen, sonst zeigt die Karte die ganze vorgenerierte Welt.
+
 > **Nether und End:** Seit Paper 26.1 liegen sie im Weltordner (`world/dimensions/minecraft/the_nether` bzw. `the_end`). Ältere Chunky-Versionen konnten sie dort nicht auswählen ([Chunky-Issue #480](https://github.com/pop4959/Chunky/issues/480)), laut Issue ist das in aktuellen Versionen behoben (verlinkt ist 1.5.66): `/chunky world ` tippen und den Nether bzw. das End per Tab-Vervollständigung wählen, dann wie oben (im Nether reicht ein kleinerer Radius, z.B. 1000).
 
 ---
@@ -927,6 +929,36 @@ Download: [WorldEdit auf Hangar](https://hangar.papermc.io/EngineHub/WorldEdit/v
 ### Mehrere Welten
 
 **Multiverse-Core** erlaubt mehrere Welten auf demselben Server — z.B. eine Survival- und eine separate Creative-Bauwelt, oder eine eigene Welt pro Kind. `/mv create <name> normal` legt eine Welt an, `/mv tp <name>` wechselt hinein. Chunky ([Schritt 18](#schritt-18--welt-mit-chunky-vorgenerieren)) lässt sich pro Welt einzeln anwenden.
+
+### Karte im Browser: BlueMap
+
+[BlueMap](https://bluemap.bluecolored.de/) zeichnet die Welt als 3D-Karte, die im Browser läuft (auch am Handy): Basen, Wege, wo die anderen gerade sind. Standardmäßig nur die Oberfläche, Höhlen und Erze bleiben unsichtbar, den Seed verrät die Karte nicht.
+
+```bash
+cd /home/minecraft/paper/plugins
+wget -O BlueMap.jar "https://cdn.modrinth.com/data/swbUV1cr/versions/uHQIrUdf/bluemap-5.29-paper.jar"   # 5.29, geprueft mit Paper 26.3
+chown minecraft:minecraft BlueMap.jar
+systemctl restart minecraft-paper   # legt plugins/BlueMap/ mit den Configs an
+```
+
+Danach drei Einstellungen in `/home/minecraft/paper/plugins/BlueMap/`:
+
+| Datei | Einstellung | Warum |
+|---|---|---|
+| `core.conf` | `accept-download: true` | BlueMap lädt die Texturen aus dem offiziellen Minecraft-Client von Mojang — ohne Zustimmung rendert es nichts |
+| `maps/*.conf` (alle drei) | `min-inhabited-time: 1` | **Wichtig gegen Spoiler:** nur Chunks zeichnen, in deren Nähe schon ein Spieler war. Die Karte deckt sich beim Erkunden auf |
+| `maps/*.conf` | `name: "Oberwelt"` usw. | Anzeigename im Kartenmenü |
+
+```bash
+chown -R minecraft:minecraft /home/minecraft/paper/plugins/BlueMap
+ufw allow 8100/tcp
+```
+
+Ingame als OP `/bluemap reload`, Fortschritt mit `/bluemap`. Die Karte liegt unter `http://<Server-IP>:8100` — für Spieler von außen im Router zusätzlich **TCP** 8100 freigeben, dann `http://DEINE-DOMAIN:8100`.
+
+> **Warum `min-inhabited-time`?** Mit dem Standardwert `0` zeichnet BlueMap jeden **erzeugten** Chunk. Nach dem Vorgenerieren mit Chunky ([Schritt 18](#schritt-18--welt-mit-chunky-vorgenerieren)) wäre das die komplette Umgebung mit allen Dörfern, Tempeln und Biomen — praktisch eine Seed-Map. Mit `1` zählt nur, wo wirklich jemand war (Zuschauer zählen dabei nicht).
+>
+> Spielerpositionen zeigt die Karte live, Spieler im Zuschauermodus, unsichtbare und „vanished" Spieler blendet sie aus (`plugin.conf`). Wer gar keine Positionen will: `live-player-markers: false`.
 
 ### Weitere Plugins bei Bedarf
 
