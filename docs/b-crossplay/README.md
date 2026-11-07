@@ -234,14 +234,16 @@ curl -Lo floodgate-spigot.jar \
 # einzig verlaessliche Methode - GitHub-latest-Links liefern oft nur eine
 # Fehlerseite statt der JAR. Aktuelle Version: hangar.papermc.io/ViaVersion
 wget -O ViaVersion.jar \
-  "https://hangarcdn.papermc.io/plugins/ViaVersion/ViaVersion/versions/5.11.0/PAPER/ViaVersion-5.11.0.jar"
+  "https://hangarcdn.papermc.io/plugins/ViaVersion/ViaVersion/versions/5.12.2/PAPER/ViaVersion-5.12.2.jar"
 wget -O ViaBackwards.jar \
-  "https://hangarcdn.papermc.io/plugins/ViaVersion/ViaBackwards/versions/5.11.0/PAPER/ViaBackwards-5.11.0.jar"
+  "https://hangarcdn.papermc.io/plugins/ViaVersion/ViaBackwards/versions/5.12.2/PAPER/ViaBackwards-5.12.2.jar"
 
 ls -lh *.jar && file *.jar   # "Java archive data (JAR)" oder "Zip archive data" - nie HTML/ASCII text
 ```
 
 > ViaVersion und ViaBackwards **immer in derselben Version** und aus demselben Channel (Release) ziehen, nie mischen.
+>
+> **ViaVersion aktuell halten!** Es wird nicht automatisch aktualisiert. Ist es zu alt für die neueste Java-Version, kommen Windows-/Launcher-Spieler mit der Meldung „Inkompatible Version" bzw. der Paper-Versionsnummer nicht mehr rein. Beispiel: Java 26.3 braucht mindestens ViaVersion 5.12.0.
 
 ### Schritt 10 – Plugin-Stack installieren
 
@@ -296,7 +298,7 @@ cd ~/paper
 java -Xms2G -Xmx4G -jar paper.jar --nogui
 ```
 
-Das Log sollte u.a. zeigen: `[LuckPerms] Successfully enabled`, `[CoreProtect] Enabled`, `[GriefPrevention] ... enabled`, `[Essentials] Enabled`, `[floodgate] ... Floodgate`, `[Geyser-Spigot] Started Geyser on UDP port 19132`, `[ViaVersion] Loading ViaVersion`. Dann `stop` und `exit`.
+Das Log sollte u.a. zeigen: `[LuckPerms] Successfully enabled`, `[CoreProtect] Enabled`, `[GriefPrevention] ... enabled`, `[Essentials] Enabled`, `[floodgate] ... Floodgate`, `[Geyser-Spigot] Built-in signaling started on http://0.0.0.0:19132`, `[ViaVersion] Loading ViaVersion`. Dann `stop` und `exit`.
 
 > Stürzt Geyser mit `ExceptionInInitializerError` ab: Die Paper-Version ist zu neu für Geyser — auf der gepinnten Version bleiben, bis Geyser nachzieht.
 
@@ -311,9 +313,16 @@ motd:
   primary-motd: DeinServerName
 gameplay:
   server-name: DeinServerName
+bedrock:
+  port: 19132
+  transport: nethernet   # seit 27.10.2026 Pflicht fuer aktuelle Bedrock-Clients
+  signaling:
+    mode: builtin
 java:
   auth-type: floodgate   # <- der wichtigste Punkt
 ```
+
+> **NetherNet:** Seit dem 27. Oktober 2026 verbinden sich Bedrock-Clients über das neue Protokoll NetherNet. Aktuelle Geyser-Builds stellen das von selbst ein — prüfen schadet nicht. Geyser braucht dafür auf Port 19132 **UDP und TCP** (TCP für den Verbindungsaufbau, UDP fürs Spielen), siehe [Schritt 16](#schritt-16--firewall-und-port-forwarding). `clone-remote-port: true` funktioniert damit nicht mehr, weil TCP 25565 schon vom Java-Server belegt ist. Hintergrund: [GeyserMC – Preparing for NetherNet](https://geysermc.org/blog/preparing-for-nethernet/).
 
 > Drei Felder beschreiben denselben Server: `motd=` in `server.properties` (Java-Serverliste), `motd.primary-motd` (Bedrock-Serverliste) und `gameplay.server-name` (Bedrock ingame) — überall denselben Namen setzen.
 
@@ -360,13 +369,18 @@ Nach etwa einer Minute sollte im Log `Done (...)` stehen.
 ```bash
 ufw allow 22/tcp        # SSH zuerst, sonst sperrst du dich aus!
 ufw allow 25565/tcp     # Java
-ufw allow 19132/udp     # Bedrock ueber Geyser
+ufw allow 19132/udp     # Bedrock ueber Geyser (Spielen)
+ufw allow 19132/tcp     # Bedrock ueber Geyser (NetherNet-Verbindungsaufbau)
 ufw enable
 ```
 
-Router: **TCP** 25565 → 25565 und **UDP** 19132 → 19132, beide auf die feste LXC-IP aus [Schritt 1](#schritt-1--lxc-anlegen) (`ip a | grep inet` zeigt sie). Kommt von außen nichts an: CGNAT prüfen, siehe [Weitere Empfehlungen](#weitere-empfehlungen).
+Router: **TCP** 25565 → 25565, **UDP** 19132 → 19132 und **TCP** 19132 → 19132, alle auf die feste LXC-IP aus [Schritt 1](#schritt-1--lxc-anlegen) (`ip a | grep inet` zeigt sie). Kommt von außen nichts an: CGNAT prüfen, siehe [Weitere Empfehlungen](#weitere-empfehlungen).
 
-> **Auf dem VServer:** `ufw limit 22/tcp` statt `ufw allow 22/tcp` — sperrt eine IP, die 6 oder mehr Verbindungen in 30 Sekunden versucht, und bremst so Passwort-Rater zusätzlich aus. Router und Port-Forwarding entfallen. Hat der Anbieter im Kundenmenü eine eigene Firewall aktiv (z.B. Hetzner Cloud Firewall), dort **TCP** 22, **TCP** 25565 und **UDP** 19132 ebenfalls freigeben.
+> **Port 19132 braucht UDP und TCP.** Früher reichte UDP — seit NetherNet (27.10.2026) scheitern Bedrock-Clients ohne TCP 19132 mit „Initial Connection"-Fehlern, und im Server-Log taucht gar kein Verbindungsversuch auf. In der Fritzbox ist das eine eigene, dritte Freigabe. Bei IPv6-Freigaben prüfen, ob die Interface-ID in der Fritzbox noch zur aktuellen Adresse des Containers passt (`ip a show eth0`) — nach einem Neuanlegen des Containers ändert sie sich.
+>
+> Test von außen bzw. über die öffentliche Adresse: `timeout 5 bash -c 'echo > /dev/tcp/DEINE-DOMAIN/19132' && echo offen`
+
+> **Auf dem VServer:** `ufw limit 22/tcp` statt `ufw allow 22/tcp` — sperrt eine IP, die 6 oder mehr Verbindungen in 30 Sekunden versucht, und bremst so Passwort-Rater zusätzlich aus. Router und Port-Forwarding entfallen. Hat der Anbieter im Kundenmenü eine eigene Firewall aktiv (z.B. Hetzner Cloud Firewall), dort **TCP** 22, **TCP** 25565, **UDP** 19132 und **TCP** 19132 ebenfalls freigeben.
 
 ### Schritt 17 – OP-Rechte vergeben
 
@@ -858,7 +872,8 @@ Ein öffentliches `ntfy.sh`-Topic kann von **jedem** gelesen und beschrieben wer
 | Problem | Lösung |
 |---|---|
 | Geyser stürzt mit `ExceptionInInitializerError` ab | Paper-Version zu neu für Geyser — auf der gepinnten Version bleiben, bis Geyser nachzieht |
-| Bedrock-Spieler kommen nicht rein, Java-Spieler schon | **UDP** 19132 in `ufw` und im Router bzw. in der Firewall des Anbieters prüfen; im Log muss `Started Geyser on UDP port 19132` stehen |
+| Bedrock-Spieler kommen nicht rein (z.B. „Initial Connection"), Java-Spieler schon | **UDP und TCP** 19132 in `ufw` und im Router bzw. in der Firewall des Anbieters prüfen; im Log muss `Built-in signaling started on http://0.0.0.0:19132` stehen. Fehlt TCP 19132, kommt im Log gar kein Bedrock-Versuch an |
+| Java-Spieler mit neuestem Launcher bekommen „Inkompatible Version" (zeigt die Paper-Version), ältere Clients kommen rein | ViaVersion und ViaBackwards zu alt für die neue Java-Version — aktualisieren, siehe [Paper und Plugins von Hand aktualisieren](#paper-und-plugins-von-hand-aktualisieren) |
 | Bedrock-Spieler werden beim Chatten gekickt | `enforce-secure-profile=false` in `server.properties` prüfen |
 | `/linkaccount` ist unbekannt | `enable-own-linking: true` und `floodgate-sqlite-database.jar` in `plugins/floodgate/` ([Schritt 14](#schritt-14--floodgate-kontoverknüpfung)) |
 | Gamerule ist unbekannt | Seit 1.21.11 gelten neue Namen — `/gamerule ` tippen, Tab-Vervollständigung zeigt sie |
