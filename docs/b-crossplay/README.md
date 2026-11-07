@@ -956,7 +956,7 @@ ufw allow 8100/tcp
 
 Ingame als OP `/bluemap reload`, Fortschritt mit `/bluemap`. Die Karte liegt unter `http://<Server-IP>:8100` — für Spieler von außen im Router zusätzlich **TCP** 8100 freigeben, dann `http://DEINE-DOMAIN:8100`.
 
-> **Warum `min-inhabited-time`?** Mit dem Standardwert `0` zeichnet BlueMap jeden **erzeugten** Chunk. Nach dem Vorgenerieren mit Chunky ([Schritt 18](#schritt-18--welt-mit-chunky-vorgenerieren)) wäre das die komplette Umgebung mit allen Dörfern, Tempeln und Biomen — praktisch eine Seed-Map. Mit `1` zählt nur, wo wirklich jemand war (Zuschauer zählen dabei nicht).
+> **Warum `min-inhabited-time`?** Mit dem Standardwert `0` zeichnet BlueMap jeden **erzeugten** Chunk. Nach dem Vorgenerieren mit Chunky ([Schritt 18](#schritt-18--welt-mit-chunky-vorgenerieren)) wäre das die komplette Umgebung mit allen Dörfern, Tempeln und Biomen — praktisch eine Seed-Map. Mit `1` zählt nur, wo wirklich jemand war.
 >
 > Spielerpositionen zeigt die Karte live, Spieler im Zuschauermodus, unsichtbare und „vanished" Spieler blendet sie aus (`plugin.conf`). Wer gar keine Positionen will: `live-player-markers: false`.
 
