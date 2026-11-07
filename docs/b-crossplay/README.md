@@ -2,9 +2,9 @@
 
 Die komplette Anleitung für einen **Crossplay-Server**: Java-Spieler am PC und Bedrock-Spieler auf Handy, Tablet und Windows spielen gemeinsam auf einer Welt. Dazu ein durchdachter Plugin-Stack für Komfort, Rechte und Schutz. Automatische Updates mit Rollback, tägliche Backups, Überwachung und ntfy-Benachrichtigungen sind von Anfang an dabei.
 
-**Der Stack:** PaperMC 26.1.2 · Geyser + Floodgate (Zugang für Bedrock) · ViaVersion/ViaBackwards (andere Java-Versionen) · LuckPerms · Vault · EssentialsX · CoreProtect · GriefPrevention · Chunky
+**Der Stack:** PaperMC 26.3 · Geyser + Floodgate (Zugang für Bedrock) · ViaVersion/ViaBackwards (andere Java-Versionen) · LuckPerms · Vault · EssentialsX · CoreProtect · GriefPrevention · Chunky
 
-> **Die wichtigste Regel dieses Wegs: Geyser und die Plugins sind der limitierende Faktor.** Wir nutzen Paper **26.1.2**, nicht die neueste Version 26.2 — es ist die höchste Version, die Geyser **und** alle Plugins offiziell unterstützen (EssentialsX und CoreProtect haben für 26.2 noch kein Release). Reihenfolge bei jedem größeren Sprung: **erst prüfen, ob Geyser und alle Plugins die Zielversion können, dann Paper.** Java-Clients mit neueren Versionen können sich trotzdem verbinden — dafür sorgen ViaVersion und ViaBackwards.
+> **Die wichtigste Regel dieses Wegs: Geyser und die Plugins sind der limitierende Faktor.** Wir nutzen Paper **26.3** (Stand November 2026) — Geyser unterstützt nativ genau diese Java-Version. Zwei Plugins hängen noch hinterher: **EssentialsX** hat für 26.3 bisher nur Dev-Builds, **CoreProtect** 24.1 ist offiziell nur bis 26.2 freigegeben (siehe [Schritt 10](#schritt-10--plugin-stack-installieren)). Beide sind optional — Paper, Geyser, Floodgate und ViaVersion/ViaBackwards sind der Kern, alles andere lässt sich weglassen. Reihenfolge bei jedem größeren Sprung: **erst prüfen, ob Geyser und alle Plugins die Zielversion können, dann Paper.** Java-Clients mit neueren Versionen können sich trotzdem verbinden — dafür sorgen ViaVersion und ViaBackwards.
 
 > Nur Bedrock-Geräte, keine Plugins nötig? Dann reicht der schlankere Weg **[A – Bedrock](../a-bedrock/)**.
 
@@ -159,7 +159,7 @@ apt install -y curl wget unzip jq file ufw logrotate git cron ca-certificates gn
 
 ### Schritt 4 – Java 25 installieren
 
-Paper 26.1.2 braucht **Java 25** (Pflicht ab Minecraft 26.1). Weder Ubuntu 24.04 noch Debian 13 haben das im Standard-Repository — daher über das Adoptium-Repository (Eclipse Temurin). Der Block ist auf beiden Distros identisch, weil er den Codenamen automatisch ausliest:
+Paper 26.3 braucht **Java 25** (Pflicht ab Minecraft 26.1). Weder Ubuntu 24.04 noch Debian 13 haben das im Standard-Repository — daher über das Adoptium-Repository (Eclipse Temurin). Der Block ist auf beiden Distros identisch, weil er den Codenamen automatisch ausliest:
 
 ```bash
 wget -qO- https://packages.adoptium.net/artifactory/api/gpg/key/public | \
@@ -204,11 +204,11 @@ useradd -m -r -s /bin/bash minecraft
 ```bash
 mkdir -p /home/minecraft/paper && cd /home/minecraft/paper
 wget -O paper.jar \
-  "https://fill-data.papermc.io/v1/objects/1d70b1dab9cf4a6de615209a536f3a45a2186240253c428213ce2188ab95e5f7/paper-26.1.2-74.jar"
+  "https://fill-data.papermc.io/v1/objects/9601f9a26a2a52a0f2c807cf1abf691f96ee4fb287878313b601cebc2c51eabf/paper-26.3-244.jar"
 chown -R minecraft:minecraft /home/minecraft/paper
 ```
 
-Die Datei sollte 50–60 MB groß sein. Falls der Link abläuft: [papermc.io/downloads/paper](https://papermc.io/downloads/paper) → Version **26.1.2** wählen → Download-Link kopieren. Ein älterer Build ist kein Problem — das Auto-Update aus Teil 3 zieht nach.
+Die Datei sollte 50–60 MB groß sein. Falls der Link abläuft: [papermc.io/downloads/paper](https://papermc.io/downloads/paper) → Version **26.3** wählen → Download-Link kopieren. Ein älterer Build ist kein Problem — das Auto-Update aus Teil 3 zieht nach.
 
 ### Schritt 8 – EULA und Teststart
 
@@ -249,23 +249,30 @@ ls -lh *.jar && file *.jar   # "Java archive data (JAR)" oder "Zip archive data"
 
 Weiter als `minecraft` im `plugins`-Ordner. Was die Plugins tun und woher neuere Versionen kommen: **[Teil 5](#teil-5--plugins-und-befehle)**.
 
+> **Der ganze Schritt ist optional.** Für Crossplay reichen Paper, Geyser, Floodgate und ViaVersion/ViaBackwards aus [Schritt 9](#schritt-9--geyser-floodgate-viaversion-und-viabackwards). Die Plugins hier bringen Komfort und Schutz — einzeln weglassen geht, nur Vault wird von EssentialsX-Economy und Chat-Präfixen gebraucht.
+
 ```bash
 # LuckPerms, Vault, EssentialsX (+Spawn +Chat), CoreProtect, GriefPrevention, Chunky
-# Feste Links mit Versionsnummer, alle fuer Paper 26.1.2 geprueft (Stand September 2026).
+# Feste Links mit Versionsnummer, fuer Paper 26.3 geprueft (Stand November 2026).
+# CoreProtect + EssentialsX: siehe Hinweis unter dem Block!
 wget -O LuckPerms.jar        "https://cdn.modrinth.com/data/Vebnzrzj/versions/b0mk8uS6/LuckPerms-Bukkit-5.5.71.jar"
 wget -O Vault.jar            "https://github.com/MilkBowl/Vault/releases/download/1.7.3/Vault.jar"
-wget -O CoreProtect.jar      "https://cdn.modrinth.com/data/Lu3KuzdV/versions/Kma0kBsY/CoreProtect-CE-24.0.jar"
-wget -O GriefPrevention.jar  "https://cdn.modrinth.com/data/O4o4mKaq/versions/dGfCZHqk/GriefPrevention.jar"
-wget -O Chunky.jar           "https://cdn.modrinth.com/data/fALzjamp/versions/MdY6JATr/Chunky-Bukkit-1.5.3.jar"
-wget -O EssentialsX.jar      "https://github.com/EssentialsX/Essentials/releases/download/2.22.0/EssentialsX-2.22.0.jar"
-wget -O EssentialsXSpawn.jar "https://github.com/EssentialsX/Essentials/releases/download/2.22.0/EssentialsXSpawn-2.22.0.jar"
-wget -O EssentialsXChat.jar  "https://github.com/EssentialsX/Essentials/releases/download/2.22.0/EssentialsXChat-2.22.0.jar"
+wget -O CoreProtect.jar      "https://cdn.modrinth.com/data/Lu3KuzdV/versions/3sehX6Sg/CoreProtect-CE-24.1.jar"
+wget -O GriefPrevention.jar  "https://cdn.modrinth.com/data/O4o4mKaq/versions/MtwPHMAS/GriefPrevention.jar"
+wget -O Chunky.jar           "https://cdn.modrinth.com/data/fALzjamp/versions/RBuKjN4k/Chunky-Paper-1.5.66.jar"
+wget -O EssentialsX.jar      "https://ci.ender.zone/job/EssentialsX/1833/artifact/jars/EssentialsX-2.22.1-dev%2B28-f8724e2.jar"
+wget -O EssentialsXSpawn.jar "https://ci.ender.zone/job/EssentialsX/1833/artifact/jars/EssentialsXSpawn-2.22.1-dev%2B28-f8724e2.jar"
+wget -O EssentialsXChat.jar  "https://ci.ender.zone/job/EssentialsX/1833/artifact/jars/EssentialsXChat-2.22.1-dev%2B28-f8724e2.jar"
 
 ls -lh ~/paper/plugins && file ~/paper/plugins/*.jar
 exit   # zurueck zu root
 ```
 
 **Jede** Datei muss als `Java archive data (JAR)` oder `Zip archive data` erkannt werden (eine JAR ist ein ZIP). Steht dort `HTML document` oder `ASCII text`, war der Download eine Fehlerseite. Die Größe sagt wenig: EssentialsXSpawn hat nur rund 20 KB, EssentialsX knapp 5 MB.
+
+> **Stand November 2026 — zwei Plugins mit Vorbehalt:**
+> - **EssentialsX:** Das letzte offizielle Release 2.22.0 unterstützt nur bis 26.1.2. Für 26.3 gibt es bisher nur **Dev-Builds** vom offiziellen Build-Server (oben: Build 1833, enthält „Update to Minecraft 26.3"). Dev-Builds sind nicht final getestet. Sobald 2.22.1 oder neuer als Release erscheint, auf [essentialsx.net/downloads.html](https://essentialsx.net/downloads.html) wechseln.
+> - **CoreProtect 24.1** ist offiziell nur bis 26.2 freigegeben. Es nutzt fast nur die normale Plugin-Schnittstelle und läuft erfahrungsgemäß auch eine Version weiter — Blöcke, die erst mit 26.3 neu dazukamen, werden aber eventuell nicht sauber protokolliert. Nach dem ersten Start `/co status` prüfen und im Log nach `[CoreProtect]`-Fehlern schauen. Gibt es Fehler: `CoreProtect.jar` entfernen, bis eine Version mit 26.3-Support erscheint ([Modrinth](https://modrinth.com/plugin/coreprotect/versions)).
 
 > WorldEdit und WorldGuard sind **bewusst nicht** im Standard-Stack — GriefPrevention deckt Claims inklusive Spawn-Schutz ab. Als Ausbaustufe: [Teil 7](#teil-7--erweiterungen).
 
@@ -416,7 +423,7 @@ Chunks „on the fly" zu erzeugen ist der größte Lag-Verursacher bei Crossplay
 
 `/chunky pause` · `/chunky continue` · `/chunky progress` · `/chunky cancel`. Faustregel: Radius 3000 ≈ 6 × 6 km, reicht für die meisten privaten Server. Am besten laufen lassen, wenn niemand online ist.
 
-> **Nether und End:** Seit Paper 26.1 liegen sie im Weltordner (`world/dimensions/minecraft/the_nether` bzw. `the_end`). Chunky 1.5.3 kann sie dort derzeit nicht auswählen ([Chunky-Issue #480](https://github.com/pop4959/Chunky/issues/480)) — bis das behoben ist, nur die Oberwelt vorgenerieren. Nether und End entstehen wie gewohnt beim Erkunden.
+> **Nether und End:** Seit Paper 26.1 liegen sie im Weltordner (`world/dimensions/minecraft/the_nether` bzw. `the_end`). Ältere Chunky-Versionen konnten sie dort nicht auswählen ([Chunky-Issue #480](https://github.com/pop4959/Chunky/issues/480)), laut Issue ist das in aktuellen Versionen behoben (verlinkt ist 1.5.66): `/chunky world ` tippen und den Nether bzw. das End per Tab-Vervollständigung wählen, dann wie oben (im Nether reicht ein kleinerer Radius, z.B. 1000).
 
 ---
 
@@ -498,7 +505,7 @@ crontab -e
 | Backup | ✅ täglich 03:30 | Welt samt Nether und End, Paper- und Plugin-Configs, Daten von LuckPerms, GriefPrevention, CoreProtect und Essentials, Floodgate-Schlüssel · aufbewahrt 7 Tage (`BACKUP_KEEP_DAYS` in der Config) |
 | OS-Sicherheitsupdates | ✅ täglich 04:00 | Neustart wird nur **gemeldet**, nicht erzwungen — auf dem VServer empfohlen: automatisch sonntags, siehe [Automatischer Neustart](#automatischer-neustart-nur-vserver) |
 | Geyser + Floodgate | ✅ täglich 05:00 | Müssen mit Bedrock-Client-Updates Schritt halten |
-| Paper-Builds **innerhalb** von 26.1.2 | ✅ täglich 05:00 | Patch-Builds sind sicher · vorher Backup, bei Fehlstart automatischer Rollback |
+| Paper-Builds **innerhalb** von 26.3 | ✅ täglich 05:00 | Patch-Builds sind sicher · vorher Backup, bei Fehlstart automatischer Rollback |
 | Paper-Versionssprung, ViaVersion/ViaBackwards, übrige Plugins | ❌ manuell | Bewusste Entscheidung nötig — siehe [Paper und Plugins von Hand aktualisieren](#paper-und-plugins-von-hand-aktualisieren) |
 | Distro-Wechsel, Proxmox-Host | ❌ manuell | siehe [Was die Automatik nicht abdeckt](#was-die-automatik-nicht-abdeckt) |
 
@@ -590,7 +597,7 @@ Ingame als OP, einmal pro Welt. Gamerules werden **in der Welt** gespeichert —
 
 Koordinaten brauchen keine Gamerule: Bedrock-Spieler sehen sie über Geyser automatisch (`gameplay.show-coordinates`), Java-Spieler mit F3.
 
-> **Minecraft Java hat die Gamerules mit 1.21.11 umbenannt** (z.B. `doDaylightCycle` → `advance_time`). Alte Anleitungen im Netz nennen oft noch die alten Namen — die funktionieren auf Paper 26.1.2 nicht mehr. Im Zweifel `/gamerule ` tippen, die Tab-Vervollständigung zeigt die gültigen Namen.
+> **Minecraft Java hat die Gamerules mit 1.21.11 umbenannt** (z.B. `doDaylightCycle` → `advance_time`). Alte Anleitungen im Netz nennen oft noch die alten Namen — die funktionieren auf Paper 26.x nicht mehr. Im Zweifel `/gamerule ` tippen, die Tab-Vervollständigung zeigt die gültigen Namen.
 
 #### Starter-Kit
 
@@ -644,13 +651,13 @@ Alle Plugins laufen **auf dem Server** — sie funktionieren automatisch für Ja
 
 ### Download-Quellen
 
-Die in [Schritt 10](#schritt-10--plugin-stack-installieren) verlinkten Versionen sind für Paper 26.1.2 geprüft (Stand September 2026). Für neuere Versionen immer auf der offiziellen Seite die **zur Paper-Version passende** wählen:
+Die in [Schritt 10](#schritt-10--plugin-stack-installieren) verlinkten Versionen sind für Paper 26.3 geprüft (Stand November 2026, EssentialsX und CoreProtect mit Vorbehalt). Für neuere Versionen immer auf der offiziellen Seite die **zur Paper-Version passende** wählen:
 
 | Plugin | Quelle |
 |---|---|
 | LuckPerms | [luckperms.net/download](https://luckperms.net/download) (Variante **Bukkit**) |
 | Vault | [github.com/MilkBowl/Vault/releases](https://github.com/MilkBowl/Vault/releases) — letztes Release 2020; bei Problemen ist [VaultUnlocked](https://modrinth.com/plugin/vaultunlocked) der gepflegte Nachfolger |
-| EssentialsX | [essentialsx.net/downloads.html](https://essentialsx.net/downloads.html) — Module `EssentialsX`, `EssentialsXSpawn`, `EssentialsXChat` |
+| EssentialsX | [essentialsx.net/downloads.html](https://essentialsx.net/downloads.html) — Module `EssentialsX`, `EssentialsXSpawn`, `EssentialsXChat`; Dev-Builds auf [ci.ender.zone](https://ci.ender.zone/job/EssentialsX/) |
 | CoreProtect | [modrinth.com/plugin/coreprotect](https://modrinth.com/plugin/coreprotect/versions) |
 | GriefPrevention | [github.com/TechFortress/GriefPrevention/releases](https://github.com/TechFortress/GriefPrevention/releases) bzw. [Modrinth](https://modrinth.com/plugin/griefprevention) |
 | Chunky | [hangar.papermc.io/pop4959/Chunky](https://hangar.papermc.io/pop4959/Chunky) bzw. [modrinth.com/plugin/chunky](https://modrinth.com/plugin/chunky) — Plattform **Paper** |
@@ -786,14 +793,16 @@ rm /run/minecraft-paper.maintenance
 
 ### Paper und Plugins von Hand aktualisieren
 
-**Paper-Versionssprung** (z.B. 26.1.2 → 26.2) — erst, wenn Geyser und alle Plugins so weit sind:
+**Paper-Versionssprung** (z.B. 26.3 → 26.4) — erst, wenn Geyser und alle Plugins so weit sind:
 
 1. Prüfen, ob Geyser **und alle Plugins** (vor allem EssentialsX und CoreProtect) die Zielversion offiziell unterstützen.
 2. Plugins bei Bedarf zuerst aktualisieren (siehe unten).
 3. `PAPER_MC_VERSION` in `/etc/minecraft-guide.conf` anpassen.
 4. `/usr/local/bin/mc-crossplay-update.sh` laufen lassen — holt den neuesten Build der neuen Version, mit Backup und Rollback.
 
-> **Achtung:** Die Welt wird beim ersten Start mit der neuen Version **unumkehrbar** umgewandelt. Ein Rollback der JAR hilft danach nicht mehr — nur das Backup von vor dem Sprung.
+> **Achtung:** Die Welt wird beim ersten Start mit der neuen Version **unumkehrbar** umgewandelt. Ein Rollback der JAR hilft danach nicht mehr — nur das Backup von vor dem Sprung. Vorher zusätzlich einen Snapshot machen (Proxmox: `pct snapshot <CTID> vor-paper-<version>`, VServer: im Kundenmenü). Ein Zurück auf die alte Paper-Version mit der umgewandelten Welt endet mit `No key dimensions in MapLike[{}]` — die Welt ist dann für die alte Version nicht mehr lesbar.
+>
+> **Sprung von 1.21.x auf 26.x:** Paper zeigt beim ersten Start `World storage migration is required` und wartet 30 Sekunden (zum Abbrechen, falls kein Backup da ist). Danach zieht es Nether und End aus den alten Ordnern `<welt>_nether` und `<welt>_the_end` nach `<welt>/dimensions/minecraft/` um — die alten Ordner verschwinden. Liegen mehrere Welten auf dem Server, wird jede erst beim ersten Laden umgewandelt.
 
 **ViaVersion/ViaBackwards:** aktuelle Version auf [hangar.papermc.io/ViaVersion/ViaVersion/versions](https://hangar.papermc.io/ViaVersion/ViaVersion/versions) nachsehen, die Links aus [Schritt 9](#schritt-9--geyser-floodgate-viaversion-und-viabackwards) mit der neuen Versionsnummer ausführen, Server neu starten.
 
@@ -908,7 +917,7 @@ GriefPrevention schützt die Grundstücke der Spieler. Sollen in einer Region ei
 - **WorldGuard** danach (braucht WorldEdit): eigene Regionen mit Regeln, z.B. `/rg define spawn`, dann Flags wie `pvp deny`.
 - Beide laufen problemlos **parallel** zu GriefPrevention: WorldGuard für Bereiche, die der Admin festlegt, GriefPrevention für die Grundstücke der Spieler.
 
-Download: [WorldEdit auf Hangar](https://hangar.papermc.io/EngineHub/WorldEdit/versions), [WorldGuard auf Modrinth](https://modrinth.com/plugin/worldguard/versions). Vorher prüfen, dass beide Paper 26.1.2 unterstützen.
+Download: [WorldEdit auf Hangar](https://hangar.papermc.io/EngineHub/WorldEdit/versions), [WorldGuard auf Modrinth](https://modrinth.com/plugin/worldguard/versions). Vorher prüfen, dass beide Paper 26.3 unterstützen.
 
 ### Discord-Anbindung
 

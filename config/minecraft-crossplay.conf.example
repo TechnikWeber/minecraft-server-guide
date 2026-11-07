@@ -30,7 +30,7 @@ MC_START_TIMEOUT=180
 # Geyser und die Plugins sind der limitierende Faktor - siehe docs/b-crossplay.
 # Wird NICHT automatisch ueber Major-Versionen erhoeht.
 PAPER_PROJECT="paper"
-PAPER_MC_VERSION="26.1.2"
+PAPER_MC_VERSION="26.3"
 # PaperMC verlangt einen aussagekraeftigen User-Agent mit Kontakt-URL:
 PAPER_UA="mc-guide-updater/1.0 (https://github.com/TechnikWeber/minecraft-server-guide)"
 

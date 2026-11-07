@@ -40,7 +40,7 @@ Die Anleitungen holen Scripts, Units und Vorlagen direkt aus diesem Repo — gek
 
 ## Stand & Versionen
 
-Stand September 2026:
+Stand November 2026:
 
 - **A – Bedrock:** Bedrock Dedicated Server 1.26.x, hält sich per Auto-Update selbst aktuell.
-- **B – Crossplay:** Paper 26.1.2 mit Java 25, Geyser und Floodgate, alle Plugin-Versionen geprüft. Hier sind **Geyser und die Plugins der limitierende Faktor** — nie blind auf die neueste Paper-Version springen, bevor Geyser und alle Plugins sie unterstützen.
+- **B – Crossplay:** Paper 26.3 mit Java 25, Geyser (mit NetherNet) und Floodgate, alle Plugin-Versionen geprüft — EssentialsX und CoreProtect mit Hinweis, siehe Anleitung. Hier sind **Geyser und die Plugins der limitierende Faktor** — nie blind auf die neueste Paper-Version springen, bevor Geyser und alle Plugins sie unterstützen.
