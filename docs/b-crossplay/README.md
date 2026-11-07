@@ -21,7 +21,7 @@ Alle Befehle laufen **als root im LXC** bzw. auf dem VServer. Wo der Benutzer `m
 7. **[Erweiterungen](#teil-7--erweiterungen)**
 8. **[Weitere Empfehlungen](#weitere-empfehlungen)**
 
-Zum Weitergeben an die Spieler: **[Spieler-Anleitung](spieler-anleitung.md)** · **[dieselbe für Discord](spieler-anleitung-discord.md)**
+Zum Weitergeben an die Spieler: **[Spieler-Anleitung](spieler-anleitung.md)** · **[dieselbe für Discord](spieler-anleitung-discord.md)** · **[Nachricht für Erwachsene/Freundeskreis](nachricht-erwachsene.md)**
 
 ---
 
@@ -47,9 +47,13 @@ In den Proxmox-Einstellungen:
 
 - **„Start at boot"** aktivieren — automatischer Neustart nach einem Stromausfall
 - **Feste IP** vergeben (Netzwerk auf static oder DHCP-Reservierung auf die MAC-Adresse) — sonst zeigt das Port-Forwarding irgendwann ins Leere
+- Bei statischer IP **das Gateway nicht vergessen** (Fritzbox: `192.168.178.1`). Ohne Gateway antwortet der Container zwar im Heimnetz und kommt oft sogar über IPv6 ins Internet — aber nicht über IPv4, und Spieler von außen bekommen keine Antwort. Prüfen im Container: `ip route | grep default` muss `default via 192.168.178.1` zeigen
+- In der Fritzbox taucht ein Container mit statischer IP manchmal nur als **`PC---be24-11ff-fe…`** ohne IPv4-Adresse auf (der Name stammt aus der MAC, `BC:24:11:…` ist Proxmox). Unter *Heimnetz → Netzwerk* bearbeiten: sprechend umbenennen, IPv4-Adresse eintragen — erst dann lassen sich Portfreigaben sauber darauf legen
 - `features: nesting=1` ist bei aktuellen Templates meist schon voreingestellt
 
 Im Proxmox-LXC ist man standardmäßig root. Auf einem klassischen Ubuntu-Server außerhalb eines LXC zuerst `sudo -i`.
+
+> **SSH in den LXC** (bequemer als die Proxmox-Konsole): in der Proxmox-Konsole des Containers `apt install -y openssh-server`, dann den eigenen **öffentlichen** Schlüssel (`~/.ssh/id_ed25519.pub` vom PC) nach `/root/.ssh/authorized_keys` kopieren (`mkdir -p /root/.ssh && chmod 700 /root/.ssh`, Datei `chmod 600`). Debian/Ubuntu lassen root ab Werk nur per Schlüssel rein, nicht per Passwort — genau richtig so.
 
 ### Alternative: VServer statt LXC
 
@@ -243,6 +247,8 @@ ls -lh *.jar && file *.jar   # "Java archive data (JAR)" oder "Zip archive data"
 
 > ViaVersion und ViaBackwards **immer in derselben Version** und aus demselben Channel (Release) ziehen, nie mischen.
 >
+> **Alte, angreifbare Protokolle sperren:** ViaVersion warnt beim Start, dass die Clients 1.20.5–1.21.4 leicht angreifbar sind. Wer sie nicht braucht, trägt nach dem ersten Start in `plugins/ViaVersion/config.yml` ein: `block-versions: ["1.20.5-1.20.6", "1.21-1.21.1", "1.21.2-1.21.3", "1.21.4"]` — wirksam nach `/viaversion reload`.
+>
 > **ViaVersion aktuell halten!** Es wird nicht automatisch aktualisiert. Ist es zu alt für die neueste Java-Version, kommen Windows-/Launcher-Spieler mit der Meldung „Inkompatible Version" bzw. der Paper-Versionsnummer nicht mehr rein. Beispiel: Java 26.3 braucht mindestens ViaVersion 5.12.0.
 
 ### Schritt 10 – Plugin-Stack installieren
@@ -297,6 +303,22 @@ nano /home/minecraft/paper/server.properties
 > **`enforce-secure-profile=false` ist bei Crossplay Pflicht.** Die Einstellung verlangt kryptografisch signierte Chat-Nachrichten über Mojangs Java-Anmeldung. Bedrock-Spieler kommen über Floodgate mit ihrem Xbox-Konto — sie können das technisch nicht liefern und würden beim ersten Chatversuch rausgeworfen. `false` ist die offizielle Floodgate-Empfehlung für private Crossplay-Server.
 
 Hintergründe zu Whitelist, Gamemodes und dem kompletten Kinderserver-Profil: **[Teil 4](#teil-4--sicherheit-und-kinderserver)**.
+
+#### Was Minecraft ab Werk einstellt
+
+Bevor man etwas ändert: Diese Werte prägen das Spielgefühl am stärksten. Gamerules gelten pro Welt und werden ingame (oder per [mc-cmd](#bequemer-konsole-per-rcon)) gesetzt.
+
+| Einstellung | Standard | Ändern mit | Hinweis |
+|---|---|---|---|
+| Schwierigkeit | `easy` | `difficulty=` in `server.properties` | `peaceful` = keine Monster, kein Hunger |
+| **Schlafen** | **alle** müssen schlafen | `/gamerule players_sleeping_percentage 0` | `0` = einer reicht — im Mehrspieler die beliebteste Änderung |
+| Inventar beim Tod | geht verloren (Items 5 Min. am Todesort) | `/gamerule keep_inventory true` | |
+| PvP | an | `/gamerule pvp false` | |
+| Creeper/Endermen verändern Blöcke | an | `/gamerule mob_griefing false` | schaltet auch Dorfbewohner-Ernte ab |
+| Tag/Nacht · Wetter | an | `/gamerule advance_time false` · `advance_weather false` | |
+| Spawn-Streuung | bis 10 Blöcke um den Spawn | `/gamerule respawn_radius 0` | `0` = alle erscheinen genau auf dem Spawn |
+| Sichtweite · Simulation | 10 · 10 Chunks | `view-distance=` · `simulation-distance=` | Obergrenze — jeder Spieler kann im Client weniger einstellen, nicht mehr. Mit 6 GB RAM sind 12 · 10 gut machbar |
+| Max. Spieler | 20 | `max-players=` | |
 
 ### Schritt 12 – Einmal starten, damit die Plugins ihre Configs anlegen
 
@@ -359,6 +381,8 @@ player-link:
 
 **Verknüpfen im Spiel:** mit dem Java-Client einloggen → im Java-Chat `/linkaccount BedrockName` (zeigt einen Code) → mit dem Bedrock-Client einloggen (erscheint als `.BedrockName`) → im Bedrock-Chat `/linkaccount JavaName Code`. Der Bedrock-Client wird danach einmal gekickt, beim nächsten Login sind beide Konten verknüpft.
 
+> **Erst verknüpfen, dann OP und Freischaltung.** Nach der Verknüpfung nutzt der Bedrock-Client das Java-Konto — ein `op JavaName` gilt dann für beide Geräte. Was jemand vorher mit Bedrock gesammelt hat, gehört dem getrennten Bedrock-Konto und ist nach der Verknüpfung nicht mehr da. Deshalb gleich beim ersten Login verknüpfen.
+
 ### Schritt 15 – systemd-Service
 
 ```bash
@@ -411,18 +435,60 @@ rm /run/minecraft-paper.maintenance
 
 > Java-Namen lassen sich auch opsen, bevor der Spieler je online war. Bedrock-Spieler ohne Kontoverknüpfung haben einen Punkt vor dem Namen (`op .Gamertag`) und müssen den Server vorher einmal betreten haben. Mit Verknüpfung ([Schritt 14](#schritt-14--floodgate-kontoverknüpfung)) reicht der Java-Name.
 
+#### Bequemer: Konsole per RCON
+
+Statt den Server für jeden Konsolen-Befehl von Hand zu starten, kann man Befehle per RCON an den laufenden Server schicken. Das Script `mc-cmd` aus diesem Repo erledigt das von root aus:
+
+```bash
+nano /home/minecraft/paper/server.properties
+#   enable-rcon=true
+#   rcon.port=25575
+#   rcon.password=<langes Zufallspasswort, z.B. aus: openssl rand -base64 24>
+#   broadcast-rcon-to-ops=false
+chmod 640 /home/minecraft/paper/server.properties
+install -m 750 /opt/minecraft-server-guide/scripts/common/mc-cmd /usr/local/bin/mc-cmd
+systemctl restart minecraft-paper
+mc-cmd op DeinJavaName
+mc-cmd list
+```
+
+> Port 25575 **nicht** in `ufw` oder im Router freigeben — RCON soll nur auf dem Server selbst erreichbar sein. `ufw` aus [Schritt 16](#schritt-16--firewall-und-port-forwarding) blockt ihn ab Werk.
+
 ### Schritt 18 – Welt mit Chunky vorgenerieren
 
-Chunks „on the fly" zu erzeugen ist der größte Lag-Verursacher bei Crossplay, weil Java- und Bedrock-Clients unterschiedlich nachladen. Chunky erzeugt das Gelände einmal im Voraus. Ingame als OP:
+Chunks „on the fly" zu erzeugen ist der größte Lag-Verursacher bei Crossplay, weil Java- und Bedrock-Clients unterschiedlich nachladen. Chunky erzeugt das Gelände einmal im Voraus — vorher den Spawn festlegen, denn er wird der Mittelpunkt.
+
+**Spawn suchen und setzen** (als OP, bevor die anderen kommen):
+
+```
+/gamemode spectator                  # fliegen, durch Blöcke, kein Inventar
+/setworldspawn                       # am gewünschten Ort, setzt den Spawn auf die eigene Position
+/advancement revoke @s everything    # unterwegs "geschenkte" Fortschritte zurücksetzen
+/gamemode survival
+```
+
+> Der Zuschauermodus ist besser als Creative: Im Creative-Modus vergibt Java weiter Fortschritte (z.B. für Items aus dem Kreativ-Menü). Kaputt geht dadurch nichts, `/advancement revoke @s everything` setzt sie zurück. Festen Boden für den Spawn wählen (kein Wasser, kein Laub, keine Höhle darunter). Der Spawn gilt für neue Spieler und für alle, die ohne Bett sterben. Gefällt gar nichts: Welt neu würfeln, siehe [Welt zurücksetzen oder neu würfeln](#welt-zurücksetzen-oder-neu-würfeln).
+
+**Vorgenerieren** — mit den Koordinaten des Spawns statt `X Z`:
 
 ```
 /chunky world world
-/chunky center 0 0
+/chunky center X Z
 /chunky radius 3000
 /chunky start
 ```
 
 `/chunky pause` · `/chunky continue` · `/chunky progress` · `/chunky cancel`. Faustregel: Radius 3000 ≈ 6 × 6 km, reicht für die meisten privaten Server. Am besten laufen lassen, wenn niemand online ist.
+
+> **Fortschritt aufs Handy (optional):** `scripts/crossplay/mc-chunky-ntfy.sh` meldet alle 5 % per ntfy, startet danach selbst Nether und End und nimmt sich am Ende aus dem Cron. Braucht [mc-cmd](#bequemer-konsole-per-rcon). In der Datei `STAGES` anpassen (Mitte = Spawn, Nether = Spawn-Koordinaten / 8), dann:
+>
+> ```bash
+> install -m 750 /opt/minecraft-server-guide/scripts/crossplay/mc-chunky-ntfy.sh /usr/local/bin/mc-chunky-ntfy.sh
+> nano /usr/local/bin/mc-chunky-ntfy.sh   # STAGES anpassen
+> (crontab -l; echo "*/2 * * * * /usr/local/bin/mc-chunky-ntfy.sh >> /var/log/mc-chunky-ntfy.log 2>&1") | crontab -
+> ```
+>
+> Nach „alles fertig": `Chunky.jar` und `plugins/Chunky/` löschen, Server neu starten — Chunky wird danach nicht mehr gebraucht.
 
 > **Mittelpunkt = Spawn:** Erst den Spawn festlegen (`/setworldspawn` am gewünschten Ort), dann mit dessen Koordinaten `/chunky center X Z`. Mit einer Browser-Karte wie [BlueMap](#karte-im-browser-bluemap) unbedingt `min-inhabited-time` setzen, sonst zeigt die Karte die ganze vorgenerierte Welt.
 
@@ -671,7 +737,12 @@ Downloads immer prüfen: `file ~/paper/plugins/*.jar` muss `Java archive data (J
 
 ### Befehle eingeben
 
-Ingame im Chat mit `/` — Bedrock-Spieler tippen sie genauso. In der Server-Konsole (nur beim Start von Hand, siehe [Schritt 17](#schritt-17--op-rechte-vergeben)) ohne `/`.
+Ingame im Chat mit `/` — Bedrock-Spieler tippen sie genauso. In der Server-Konsole (nur beim Start von Hand, siehe [Schritt 17](#schritt-17--op-rechte-vergeben)) ohne `/`. Vom Server aus ohne Neustart: [mc-cmd](#bequemer-konsole-per-rcon).
+
+### Skins und Erfolge – was Spieler fragen
+
+- **Skins:** Java-Spieler sehen alle Java-Skins wie gewohnt, Bedrock-Spieler sehen alle Skins. Bedrock-Skins lädt Geyser für die Java-Spieler hoch — gekaufte Marketplace- und Charakter-Ersteller-Skins erscheinen dort als **flaches Standardmodell** (Farben und Muster stimmen, 3D-Teile wie Hüte oder Flügel fehlen). Nach dem Einloggen kann das ein paar Minuten dauern.
+- **Erfolge:** Die Java-Fortschritte (Advancements) funktionieren für alle — Bedrock-Spieler sehen sie über `/advancements` als Menü. **Xbox-Erfolge** gibt es auf eigenen Servern nicht; Geysers Schalter `xbox-achievements-enabled` funktioniert nur teilweise und bleibt besser aus.
 
 ### EssentialsX – Alltagsbefehle
 
@@ -891,6 +962,7 @@ Ein öffentliches `ntfy.sh`-Topic kann von **jedem** gelesen und beschrieben wer
 | Gamerule ist unbekannt | Seit 1.21.11 gelten neue Namen — `/gamerule ` tippen, Tab-Vervollständigung zeigt sie |
 | Plugin lädt nicht | `file datei.jar` zeigt `HTML`/`ASCII text` statt `Java archive data`/`Zip archive data` → war eine Fehlerseite, Link neu kopieren; sonst prüfen, ob das Plugin die Paper-Version unterstützt |
 | Von außen kommt niemand rein | Port-Forwarding und feste IP prüfen; CGNAT siehe [Weitere Empfehlungen](#weitere-empfehlungen) · VServer: `ufw status` und die Firewall im Kundenmenü des Anbieters prüfen |
+| Container fehlt in der Fritzbox oder hat dort keine IPv4-Adresse | Gateway prüfen: `ip route \| grep default` im Container muss das Gateway zeigen, sonst in Proxmox unter *Network* eintragen. Eintrag `PC---be24-…` in der Fritzbox = der Container, umbenennen und IPv4 eintragen ([Schritt 1](#schritt-1--lxc-anlegen)) |
 | `apt`-Befehl meldet „could not get lock" | Gerade läuft ein anderer apt-Vorgang (z.B. `mc-os-update.sh` oder der tägliche Paketlisten-Abgleich) — kurz warten und erneut versuchen |
 | `journalctl`-Zeile endet mit `>` | Nur abgeschnitten (Pager) — `q` zum Verlassen, oder `--no-pager` anhängen |
 
@@ -929,6 +1001,21 @@ Download: [WorldEdit auf Hangar](https://hangar.papermc.io/EngineHub/WorldEdit/v
 ### Mehrere Welten
 
 **Multiverse-Core** erlaubt mehrere Welten auf demselben Server — z.B. eine Survival- und eine separate Creative-Bauwelt, oder eine eigene Welt pro Kind. `/mv create <name> normal` legt eine Welt an, `/mv tp <name>` wechselt hinein. Chunky ([Schritt 18](#schritt-18--welt-mit-chunky-vorgenerieren)) lässt sich pro Welt einzeln anwenden.
+
+### Server-Icon (Logo in der Serverliste)
+
+Ein eigenes Logo erscheint in der **Java**-Serverliste (Bedrock zeigt bei keinem Server ein Icon). Paper erwartet genau **64 × 64 Pixel**, PNG, unter dem Namen `server-icon.png`:
+
+```bash
+# auf dem PC (ImageMagick), aus einem quadratischen Logo:
+magick logo.png -resize 64x64 server-icon.png      # aeltere Versionen: convert statt magick
+scp server-icon.png root@DEINE-SERVER-IP:/home/minecraft/paper/server-icon.png
+# auf dem Server:
+chown minecraft:minecraft /home/minecraft/paper/server-icon.png
+systemctl restart minecraft-paper
+```
+
+> Ein Logo lässt sich z.B. per Bild-KI erstellen. Für ein Icon taugt ein einfaches Emblem mit wenig Text und hohem Kontrast — vor dem Verkleinern prüfen, ob es bei 64 Pixeln noch erkennbar ist. Keine offiziellen Minecraft-Logos oder Mojang-Schriften nachbauen lassen.
 
 ### Karte im Browser: BlueMap
 
@@ -975,3 +1062,4 @@ Ingame als OP `/bluemap reload`, Fortschritt mit `/bluemap`. Die Karte liegt unt
 4. **Off-Site-Backup:** Die Backups liegen sonst nur im selben LXC. Per `rsync`/`rclone` nachts aufs NAS oder in die Cloud kopieren. Auf dem VServer besonders wichtig — fällt er aus oder wird gekündigt, sind die Backups mit weg. Am einfachsten holt ein Rechner oder NAS zu Hause sie nachts ab, dann braucht der VServer keine Zugangsdaten für dein Heimnetz: `rsync -a root@DEINE-SERVER-IP:/home/minecraft/backups/ /pfad/zu/minecraft-backups/`
 5. **RAM und CPU sparen:** `view-distance` und `simulation-distance` in `server.properties` reduzieren (z.B. 8 und 6) und `-Xmx` im Service zum RAM passend setzen.
 6. **Konsolen-Clients (Xbox/PlayStation/Switch)** können keine eigene Server-Adresse eintragen — nur Handy, Tablet und Windows. Vorher einplanen, falls die Familie auf Konsole spielt.
+7. **Zwei Server hinter einer öffentlichen IP:** Der Router kann jeden Port nur an **ein** Gerät weiterleiten. Entweder bekommt nur ein Server die Standardports (25565, 19132) und der andere ist nur im Heimnetz erreichbar — oder der zweite bekommt eigene Ports (z.B. `server-port=25566` und in Geyser `bedrock.port: 19133`, Freigaben entsprechend). Java-Spieler kommen dann per `domain:25566` rein oder ohne Portangabe über eine eigene Subdomain mit **SRV-Eintrag** (`_minecraft._tcp.sub.domain` → Port 25566). Bedrock kennt keine SRV-Einträge, dort muss der Port immer eingegeben werden.
