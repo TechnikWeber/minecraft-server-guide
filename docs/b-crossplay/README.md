@@ -4,7 +4,7 @@ Die komplette Anleitung für einen **Crossplay-Server**: Java-Spieler am PC und 
 
 **Der Stack:** PaperMC 26.3 · Geyser + Floodgate (Zugang für Bedrock) · ViaVersion/ViaBackwards (andere Java-Versionen) · LuckPerms · Vault · EssentialsX · CoreProtect · GriefPrevention · Chunky
 
-> **Die wichtigste Regel dieses Wegs: Geyser und die Plugins sind der limitierende Faktor.** Wir nutzen Paper **26.3** (Stand November 2026) — Geyser unterstützt nativ genau diese Java-Version. Zwei Plugins hängen noch hinterher: **EssentialsX** hat für 26.3 bisher nur Dev-Builds, **CoreProtect** 24.1 ist offiziell nur bis 26.2 freigegeben (siehe [Schritt 10](#schritt-10--plugin-stack-installieren)). Beide sind optional — Paper, Geyser, Floodgate und ViaVersion/ViaBackwards sind der Kern, alles andere lässt sich weglassen. Reihenfolge bei jedem größeren Sprung: **erst prüfen, ob Geyser und alle Plugins die Zielversion können, dann Paper.** Java-Clients mit neueren Versionen können sich trotzdem verbinden — dafür sorgen ViaVersion und ViaBackwards.
+> **Die wichtigste Regel dieses Wegs: Geyser und die Plugins sind der limitierende Faktor.** Wir nutzen Paper **26.3** (Stand November 2026) — Geyser unterstützt nativ genau diese Java-Version. Zwei Plugins hängen noch hinterher: **EssentialsX** hat für 26.3 bisher nur Dev-Builds, **CoreProtect** 24.1 **startet auf 26.3 nicht** (siehe [Schritt 10](#schritt-10--plugin-stack-installieren)). Beide sind optional — Paper, Geyser, Floodgate und ViaVersion/ViaBackwards sind der Kern, alles andere lässt sich weglassen. Reihenfolge bei jedem größeren Sprung: **erst prüfen, ob Geyser und alle Plugins die Zielversion können, dann Paper.** Java-Clients mit neueren Versionen können sich trotzdem verbinden — dafür sorgen ViaVersion und ViaBackwards.
 
 > Nur Bedrock-Geräte, keine Plugins nötig? Dann reicht der schlankere Weg **[A – Bedrock](../a-bedrock/)**.
 
@@ -254,10 +254,11 @@ Weiter als `minecraft` im `plugins`-Ordner. Was die Plugins tun und woher neuere
 ```bash
 # LuckPerms, Vault, EssentialsX (+Spawn +Chat), CoreProtect, GriefPrevention, Chunky
 # Feste Links mit Versionsnummer, fuer Paper 26.3 geprueft (Stand November 2026).
-# CoreProtect + EssentialsX: siehe Hinweis unter dem Block!
+# EssentialsX: siehe Hinweis unter dem Block!
+# CoreProtect fehlt bewusst: 24.1 startet auf 26.3 nicht (Hinweis unten).
 wget -O LuckPerms.jar        "https://cdn.modrinth.com/data/Vebnzrzj/versions/b0mk8uS6/LuckPerms-Bukkit-5.5.71.jar"
 wget -O Vault.jar            "https://github.com/MilkBowl/Vault/releases/download/1.7.3/Vault.jar"
-wget -O CoreProtect.jar      "https://cdn.modrinth.com/data/Lu3KuzdV/versions/3sehX6Sg/CoreProtect-CE-24.1.jar"
+# wget -O CoreProtect.jar   "<Link zur ersten Version mit 26.3-Support>"
 wget -O GriefPrevention.jar  "https://cdn.modrinth.com/data/O4o4mKaq/versions/MtwPHMAS/GriefPrevention.jar"
 wget -O Chunky.jar           "https://cdn.modrinth.com/data/fALzjamp/versions/RBuKjN4k/Chunky-Paper-1.5.66.jar"
 wget -O EssentialsX.jar      "https://ci.ender.zone/job/EssentialsX/1833/artifact/jars/EssentialsX-2.22.1-dev%2B28-f8724e2.jar"
@@ -272,7 +273,7 @@ exit   # zurueck zu root
 
 > **Stand November 2026 — zwei Plugins mit Vorbehalt:**
 > - **EssentialsX:** Das letzte offizielle Release 2.22.0 unterstützt nur bis 26.1.2. Für 26.3 gibt es bisher nur **Dev-Builds** vom offiziellen Build-Server (oben: Build 1833, enthält „Update to Minecraft 26.3"). Dev-Builds sind nicht final getestet. Sobald 2.22.1 oder neuer als Release erscheint, auf [essentialsx.net/downloads.html](https://essentialsx.net/downloads.html) wechseln.
-> - **CoreProtect 24.1** ist offiziell nur bis 26.2 freigegeben. Es nutzt fast nur die normale Plugin-Schnittstelle und läuft erfahrungsgemäß auch eine Version weiter — Blöcke, die erst mit 26.3 neu dazukamen, werden aber eventuell nicht sauber protokolliert. Nach dem ersten Start `/co status` prüfen und im Log nach `[CoreProtect]`-Fehlern schauen. Gibt es Fehler: `CoreProtect.jar` entfernen, bis eine Version mit 26.3-Support erscheint ([Modrinth](https://modrinth.com/plugin/coreprotect/versions)).
+> - **CoreProtect 24.1** verweigert auf 26.3 den Start: Im Log steht `[CoreProtect] Minecraft 26.3 is not supported.` und das Plugin schaltet sich ab (getestet November 2026). Bis eine Version mit 26.3-Support erscheint ([Modrinth](https://modrinth.com/plugin/coreprotect/versions)), gibt es kein Block-Protokoll und kein `/co rollback` — als Netz bleiben die täglichen Backups. Neue Version dann wie in [Paper und Plugins von Hand aktualisieren](#paper-und-plugins-von-hand-aktualisieren) einspielen und `/co status` prüfen.
 
 > WorldEdit und WorldGuard sind **bewusst nicht** im Standard-Stack — GriefPrevention deckt Claims inklusive Spawn-Schutz ab. Als Ausbaustufe: [Teil 7](#teil-7--erweiterungen).
 
@@ -651,7 +652,7 @@ Alle Plugins laufen **auf dem Server** — sie funktionieren automatisch für Ja
 
 ### Download-Quellen
 
-Die in [Schritt 10](#schritt-10--plugin-stack-installieren) verlinkten Versionen sind für Paper 26.3 geprüft (Stand November 2026, EssentialsX und CoreProtect mit Vorbehalt). Für neuere Versionen immer auf der offiziellen Seite die **zur Paper-Version passende** wählen:
+Die in [Schritt 10](#schritt-10--plugin-stack-installieren) verlinkten Versionen sind für Paper 26.3 geprüft (Stand November 2026; EssentialsX nur als Dev-Build, CoreProtect noch ohne 26.3-Version). Für neuere Versionen immer auf der offiziellen Seite die **zur Paper-Version passende** wählen:
 
 | Plugin | Quelle |
 |---|---|
