@@ -814,6 +814,63 @@ journalctl -u minecraft-paper -f --no-pager    # Live-Log, Ctrl+C zum Beenden
 
 > Ein nur mit `systemctl stop` angehaltener Server wird vom Watchdog nach spätestens 5 Minuten wieder gestartet. Für kurze Arbeiten das [Wartungs-Flag](#wartungs-flag) setzen, für längere Pausen die Watchdog-Zeile in `crontab -e` auskommentieren.
 
+### Neustart aus dem Chat
+
+Ab Werk startet systemd den Server nur nach einem Absturz neu — ein `/stop` oder `/restart` im Spiel lässt ihn aus, bis der Watchdog nach bis zu 5 Minuten eingreift. Mit einer kleinen Ergänzung kommt der Server immer sofort wieder:
+
+```bash
+mkdir -p /etc/systemd/system/minecraft-paper.service.d
+cat > /etc/systemd/system/minecraft-paper.service.d/restart.conf <<'EOF'
+[Service]
+Restart=always
+RestartSec=5
+EOF
+systemctl daemon-reload
+```
+
+Danach reicht OPs **`/restart`** (oder `/stop`) im Chat — nach etwa 40 Sekunden ist der Server zurück. Die Meldung `Startup script './start.sh' does not exist! Stopping server.` im Log ist dabei normal: Paper fährt herunter, systemd startet neu. `systemctl stop minecraft-paper` hält den Server weiterhin richtig an.
+
+**Auslastung im Spiel:** Paper bringt **spark** mit — `/spark health` (CPU, RAM, TPS), `/spark tps`, `/spark profiler` (Analyse als Weblink). Nur für OPs.
+
+### Weboberfläche für den Notfall: Cockpit
+
+Hängt der Server so, dass auch der Chat nicht mehr geht, hilft [Cockpit](https://cockpit-project.org/) — die offizielle Server-Weboberfläche von Debian/Ubuntu: Buttons für Start/Stopp/Neustart des Dienstes, CPU-/RAM-/Plattenanzeige und die Logs. Für alle OPs gibt es einen gemeinsamen Benutzer, der **nur** den Minecraft-Dienst steuern und Logs lesen darf — keine Root-Rechte.
+
+```bash
+apt install -y --no-install-recommends cockpit-ws cockpit-system cockpit-bridge polkitd
+systemctl enable --now cockpit.socket
+
+useradd -m -s /bin/bash -c "Minecraft-Admin (Cockpit)" mcadmin
+usermod -aG systemd-journal mcadmin      # darf Logs lesen
+passwd mcadmin                           # langes Passwort, z.B. 4 x 5 Zeichen mit Bindestrichen
+echo "DenyUsers mcadmin" > /etc/ssh/sshd_config.d/10-deny-mcadmin.conf   # kein SSH fuer mcadmin
+
+cat > /etc/polkit-1/rules.d/50-mcadmin-minecraft.rules <<'EOF'
+// mcadmin darf nur den Minecraft-Dienst starten/stoppen/neu starten, sonst nichts.
+polkit.addRule(function(action, subject) {
+  if (action.id == "org.freedesktop.systemd1.manage-units" && subject.user == "mcadmin") {
+    var unit = action.lookup("unit"), verb = action.lookup("verb");
+    if (unit == "minecraft-paper.service" && (verb == "start" || verb == "stop" || verb == "restart")) {
+      return polkit.Result.YES;
+    }
+    return polkit.Result.NO;
+  }
+});
+EOF
+chmod 644 /etc/polkit-1/rules.d/50-mcadmin-minecraft.rules   # polkit muss sie lesen koennen!
+systemctl restart polkit
+
+ufw limit 9090/tcp    # "limit" bremst Passwort-Rater: max. 6 Verbindungen in 30 s pro IP
+```
+
+Testen: `su -s /bin/bash mcadmin -c "systemctl --no-ask-password restart cron"` muss **Access denied** melden, dieselbe Zeile mit `minecraft-paper` muss klappen. root darf sich an Cockpit ab Werk nicht anmelden (`/etc/cockpit/disallowed-users`).
+
+Aufruf: `https://<Server-IP>:9090`, für OPs von außen im Router **TCP** 9090 freigeben → `https://DEINE-DOMAIN:9090`. Beim ersten Aufruf warnt der Browser vor dem selbst ausgestellten Zertifikat — einmal „trotzdem fortfahren". In Cockpit unter **Dienste → minecraft-paper** gibt es die Buttons, unter **Protokolle** die Logs.
+
+> **Fehler finden:** Paper schreibt alles mit gleicher Priorität ins Journal — der Prioritätsfilter „Fehler" in Cockpit zeigt Paper-Fehler deshalb nicht. Stattdessen unter *Protokolle* nach `ERROR` oder `Exception` suchen (Textfeld).
+>
+> **Öffentlich oder nur per VPN?** Sicherer ist es, Port 9090 nicht freizugeben und von unterwegs per VPN (FRITZ!Box-VPN, Tailscale) ins Heimnetz zu gehen. Öffentlich ist es bequemer; dann sind ein langes Passwort, der eingeschränkte Benutzer und `ufw limit` Pflicht.
+
 ### Wartungs-Flag
 
 ```bash
