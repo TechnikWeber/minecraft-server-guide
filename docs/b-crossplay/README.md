@@ -894,9 +894,18 @@ fail2ban-client status cockpit
 
 Testen: `su -s /bin/bash mcadmin -c "systemctl --no-ask-password restart cron"` muss **Access denied** melden, dieselbe Zeile mit `minecraft-paper` muss klappen. root darf sich an Cockpit ab Werk nicht anmelden (`/etc/cockpit/disallowed-users`).
 
-Aufruf: `https://<Server-IP>:9090`, für OPs von außen im Router **TCP** 9090 freigeben → `https://DEINE-DOMAIN:9090`. Beim ersten Aufruf warnt der Browser vor dem selbst ausgestellten Zertifikat — einmal „trotzdem fortfahren". In Cockpit unter **Dienste → minecraft-paper** gibt es die Buttons, unter **Protokolle** die Logs.
+**Eigene Seite „Minecraft" mit Buttons:** Ohne Admin-Modus blendet Cockpit die Start/Stopp-Buttons unter *Dienste* aus — und der Admin-Modus würde volle Root-Rechte per `sudo` verlangen (Meldung „Turn on administrative access" → „No such file: sudo"). Deshalb bringt dieses Repo eine kleine Cockpit-Seite mit, die mit den eingeschränkten Rechten von `mcadmin` auskommt: Status, **Neu starten / Starten / Stoppen** (Sicherheitsabfrage per zweitem Klick), Fehler der letzten 24 Stunden und die letzten Log-Zeilen.
 
-> **Fehler finden:** Paper schreibt alles mit gleicher Priorität ins Journal — der Prioritätsfilter „Fehler" in Cockpit zeigt Paper-Fehler deshalb nicht. Stattdessen unter *Protokolle* nach `ERROR` oder `Exception` suchen (Textfeld).
+```bash
+mkdir -p /usr/share/cockpit/minecraft
+install -m 644 /opt/minecraft-server-guide/cockpit/minecraft/* /usr/share/cockpit/minecraft/
+```
+
+Aufruf: `https://<Server-IP>:9090`, für OPs von außen im Router **TCP** 9090 freigeben → `https://DEINE-DOMAIN:9090`. Beim ersten Aufruf warnt der Browser vor dem selbst ausgestellten Zertifikat — einmal „trotzdem fortfahren". Nach dem Login links auf **Minecraft**. Den Hinweis „Eingeschränkter Zugriff" einfach ignorieren — genau so ist es gewollt.
+
+> Ein über die Seite **gestoppter** Server bleibt nicht lange aus: Der Watchdog startet ihn nach spätestens 5 Minuten wieder. Für längere Pausen per SSH das [Wartungs-Flag](#wartungs-flag) setzen.
+
+> **Fehler finden:** Die Seite „Minecraft" filtert `ERROR`, `Exception` und `WARN` selbst heraus. Der Prioritätsfilter „Fehler" unter *Protokolle* hilft dagegen nicht: Paper schreibt alles mit gleicher Priorität ins Journal.
 >
 > **Öffentlich oder nur per VPN?** Sicherer ist es, Port 9090 nicht freizugeben und von unterwegs per VPN (FRITZ!Box-VPN, Tailscale) ins Heimnetz zu gehen. Öffentlich ist es bequemer; dann sind ein langes Passwort, der eingeschränkte Benutzer und fail2ban Pflicht.
 
