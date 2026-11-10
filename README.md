@@ -47,3 +47,7 @@ Stand November 2026:
 
 - **A – Bedrock:** Bedrock Dedicated Server 1.26.x, hält sich per Auto-Update selbst aktuell.
 - **B – Crossplay:** Paper 26.3 mit Java 25, Geyser (mit NetherNet) und Floodgate, alle Plugin-Versionen geprüft — EssentialsX nur als Dev-Build, CoreProtect startet auf 26.3 noch nicht, siehe Anleitung. Hier sind **Geyser und die Plugins der limitierende Faktor** — nie blind auf die neueste Paper-Version springen, bevor Geyser und alle Plugins sie unterstützen.
+
+## Lizenz
+
+[MIT](LICENSE) — für Anleitungen, Scripts und Vorlagen. Ohne Gewähr: Du betreibst deinen Server auf eigenes Risiko, mach vor Updates und Änderungen ein Backup.
