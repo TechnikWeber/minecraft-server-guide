@@ -13,6 +13,54 @@
 <button id="start">Starten</button>
 <button class="danger" id="stop">Stoppen</button>
 <div id="msg"></div>
+
+<div id="admin">
+<p class="hint" id="rconhint" hidden></p>
+
+<h2>Wer ist online</h2>
+<p id="online">wird geladen …</p>
+
+<h2>Spieler freischalten</h2>
+<p class="hint">Spielmodus eines Spielers ändern, z.&nbsp;B. ein Kind darf bauen (<b>Überleben</b> oder <b>Kreativ</b>) oder nur anschauen (<b>Abenteuer</b>). Bedrock-Spieler ohne Kontoverknüpfung mit Punkt davor: <code>.Gamertag</code>. Standard für neue Spieler: <span id="defmode">…</span>.</p>
+<form id="modeform" class="row">
+<input id="modename" list="players" placeholder="Spielername" autocomplete="off" required>
+<datalist id="players"></datalist>
+<select id="modesel">
+<option value="survival">Überleben (bauen, abbauen)</option>
+<option value="creative">Kreativ (alles, fliegen)</option>
+<option value="adventure">Abenteuer (nur anschauen)</option>
+<option value="spectator">Zuschauer (durch Wände fliegen)</option>
+</select>
+<button class="primary" type="submit">Übernehmen</button>
+</form>
+
+<h2>Whitelist: wer darf rein</h2>
+<p><span id="wlstate">…</span> <button id="wltoggle" type="button">…</button></p>
+<ul id="wllist" class="list"></ul>
+<form id="wlform" class="row">
+<input id="wlname" placeholder="Java-Name oder Gamertag" autocomplete="off" required>
+<label><input type="checkbox" id="wlbedrock"> Bedrock-Spieler</label>
+<button class="primary" type="submit">Hinzufügen</button>
+</form>
+<p class="hint">Bedrock-Gamertags mit Leerzeichen gehen hier nicht; die trägt ein OP ingame mit <code>/fwhitelist add</code> ein.</p>
+
+<h2>Spielregeln</h2>
+<p class="hint">Gelten für die aktive Welt, sofort und ohne Neustart.</p>
+<table id="rules" class="rules"></table>
+
+<h2>Nachricht an alle</h2>
+<form id="sayform" class="row">
+<input id="saytext" maxlength="200" placeholder="z. B. Neustart in 5 Minuten" autocomplete="off" required>
+<button class="primary" type="submit">Senden</button>
+</form>
+
+<h2>Backups</h2>
+<p class="hint">Ein Backup stoppt den Server kurz (ca. 1 Minute). Zurückspielen sichert vorher automatisch den aktuellen Stand.</p>
+<button id="backupnow" type="button">Backup jetzt erstellen</button>
+<ul id="backups" class="list"></ul>
+<div id="adminmsg" role="status"></div>
+</div>
+
 <h2>Fehler und Warnungen (letzte 24 Stunden)</h2>
 <pre id="errors">wird geladen …</pre>
 <h2>Letzte Log-Zeilen</h2>

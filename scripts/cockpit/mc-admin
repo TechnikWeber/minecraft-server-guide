@@ -1,0 +1,292 @@
+#!/usr/bin/env python3
+# Alltagsaufgaben fuer die Cockpit-Seite "Minecraft" (Crossplay-Server).
+# Laeuft als root, aufgerufen vom Cockpit-Benutzer mcadmin per pkexec - die
+# polkit-Regel erlaubt ihm genau dieses Programm. Deshalb nimmt es nur feste
+# Befehle an und prueft jede Eingabe streng; an die Server-Konsole (RCON) gehen
+# nur Befehle, die hier zusammengebaut werden.
+#
+#   mc-admin status                        JSON: online, Whitelist, Regeln, Backups
+#   mc-admin whitelist add|remove NAME [bedrock]
+#   mc-admin whitelist on|off
+#   mc-admin gamemode adventure|survival|creative|spectator NAME
+#   mc-admin gamerule REGEL WERT           nur die Regeln aus GAMERULES
+#   mc-admin say TEXT
+#   mc-admin backup                        wie mc-crossplay-backup.sh
+#   mc-admin restore paper-backup-DATUM.tar.gz
+#                                          sichert vorher den aktuellen Stand
+import json
+import os
+import re
+import shutil
+import socket
+import struct
+import subprocess
+import sys
+import tarfile
+
+CONF = os.environ.get("MC_GUIDE_CONF", "/etc/minecraft-guide.conf")
+# Fuer Tests umlenkbar; pkexec loescht die Umgebung, mcadmin kann das nicht.
+BACKUP_SCRIPT = os.environ.get("MC_ADMIN_BACKUP", "/usr/local/bin/mc-crossplay-backup.sh")
+SYSTEMCTL = os.environ.get("MC_ADMIN_SYSTEMCTL", "systemctl")
+
+# Spielregeln, die die Seite zeigt: Name -> (Art, Beschreibung).
+# Namen ab Minecraft 1.21.11 (Paper 26.x), siehe docs/b-crossplay.
+GAMERULES = {
+    "players_sleeping_percentage": ("int", "Anteil der Spieler, die schlafen müssen (0 = einer reicht)"),
+    "keep_inventory": ("bool", "Inventar bleibt beim Tod erhalten"),
+    "pvp": ("bool", "Spieler können sich gegenseitig verletzen"),
+    "mob_griefing": ("bool", "Creeper und Endermen verändern Blöcke"),
+    "advance_time": ("bool", "Tag und Nacht wechseln"),
+    "advance_weather": ("bool", "Wetter wechselt"),
+    "spawn_mobs": ("bool", "Tiere und Monster erscheinen"),
+    "fall_damage": ("bool", "Fallschaden"),
+    "fire_damage": ("bool", "Feuerschaden"),
+    "tnt_explodes": ("bool", "TNT explodiert"),
+}
+GAMEMODES = ("adventure", "survival", "creative", "spectator")
+JAVA_NAME = re.compile(r"^[A-Za-z0-9_]{3,16}$")
+BEDROCK_NAME = re.compile(r"^[A-Za-z0-9_]{1,16}$")      # Gamertag ohne Leerzeichen
+PLAYER = re.compile(r"^\.?[A-Za-z0-9_]{1,16}$")          # .Gamertag = Bedrock ohne Verknuepfung
+BACKUP_NAME = re.compile(r"^paper-backup-[0-9][0-9_-]*\.tar\.gz$")
+
+
+class Fail(Exception):
+    pass
+
+
+def conf():
+    c = {"MC_SERVICE": "minecraft-paper", "MC_USER": "minecraft", "MC_DIR": "/home/minecraft/paper",
+         "BACKUP_DIR": "/home/minecraft/backups", "MC_LOCKFILE": "/run/minecraft-paper.maintenance"}
+    try:
+        with open(CONF, encoding="utf-8") as f:
+            for line in f:
+                m = re.match(r'^\s*([A-Z_]+)=["\']?([^"\'#]*)["\']?\s*(#.*)?$', line)
+                if m and m.group(1) in c and m.group(2).strip():
+                    c[m.group(1)] = m.group(2).strip()
+    except FileNotFoundError:
+        pass
+    return c
+
+
+C = conf()
+
+
+def props():
+    p = {}
+    with open(os.path.join(C["MC_DIR"], "server.properties"), encoding="utf-8") as f:
+        for line in f:
+            if "=" in line and not line.startswith("#"):
+                k, v = line.rstrip("\r\n").split("=", 1)
+                p[k] = v
+    return p
+
+
+class Rcon:
+    """Eine RCON-Verbindung fuer mehrere Befehle (jede neue Verbindung landet im Server-Log)."""
+
+    def __init__(self):
+        p = props()
+        if p.get("enable-rcon") != "true" or not p.get("rcon.password"):
+            raise Fail("RCON ist aus. Einmal setup-cockpit.sh ausführen und den Server neu starten.")
+        try:
+            self.sock = socket.create_connection(("127.0.0.1", int(p.get("rcon.port", "25575"))), timeout=10)
+        except OSError as e:
+            raise Fail("Server nicht erreichbar (läuft er?): " + str(e))
+        self.next_id = 1
+        if self._request(3, p["rcon.password"])[0] == -1:
+            self.sock.close()
+            raise Fail("RCON-Login fehlgeschlagen (Passwort in server.properties prüfen).")
+
+    def _recv(self, n):
+        data = b""
+        while len(data) < n:
+            chunk = self.sock.recv(n - len(data))
+            if not chunk:
+                raise Fail("RCON: Verbindung abgebrochen")
+            data += chunk
+        return data
+
+    def _request(self, ptype, body):
+        self.next_id += 1
+        data = struct.pack("<ii", self.next_id, ptype) + body.encode("utf-8") + b"\x00\x00"
+        try:
+            self.sock.sendall(struct.pack("<i", len(data)) + data)
+            length = struct.unpack("<i", self._recv(4))[0]
+            answer = self._recv(length)
+        except OSError as e:
+            raise Fail("RCON: " + str(e))
+        return struct.unpack("<i", answer[:4])[0], answer[8:-2].decode("utf-8", "replace")
+
+    def cmd(self, command):
+        return re.sub(r"§.", "", self._request(2, command)[1]).strip()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.sock.close()
+
+
+def rcon(command):
+    with Rcon() as r:
+        return r.cmd(command)
+
+
+def backups():
+    out = []
+    d = C["BACKUP_DIR"]
+    if os.path.isdir(d):
+        for name in os.listdir(d):
+            if BACKUP_NAME.match(name):
+                st = os.stat(os.path.join(d, name))
+                out.append({"file": name, "size": st.st_size, "time": int(st.st_mtime)})
+    return sorted(out, key=lambda b: b["time"], reverse=True)
+
+
+def status():
+    p = props()
+    s = {"whitelist_on": p.get("white-list") == "true", "default_gamemode": p.get("gamemode", "survival"),
+         "rcon": False, "online": [], "max": None, "gamerules": {}, "whitelist": [],
+         "rules": {k: {"type": t, "text": d} for k, (t, d) in GAMERULES.items()}, "backups": backups()}
+    try:
+        with open(os.path.join(C["MC_DIR"], "whitelist.json"), encoding="utf-8") as f:
+            s["whitelist"] = sorted((e.get("name", "?") for e in json.load(f)), key=str.lower)
+    except (OSError, ValueError):
+        pass
+    try:
+        r = Rcon()
+    except Fail as e:
+        s["rcon_error"] = str(e)
+        return s
+    try:
+        with r:
+            _status_rcon(r, s)
+    except Fail as e:
+        s["rcon_error"] = str(e)
+    return s
+
+
+def _status_rcon(r, s):
+    listing = r.cmd("list")
+    s["rcon"] = True
+    # "There are 1 of a max of 10 players online: Name"
+    m = re.search(r"(\d+)\D+(\d+).*?:\s*(.*)$", listing)
+    if m:
+        s["max"] = int(m.group(2))
+        s["online"] = [n.strip() for n in m.group(3).split(",") if n.strip()]
+    for rule in GAMERULES:
+        answer = r.cmd("gamerule " + rule)
+        # "Gamerule keep_inventory is currently set to: false"
+        m = re.search(r":\s*(\S+)\s*$", answer)
+        if m:
+            s["gamerules"][rule] = m.group(1)
+
+
+def need(args, n, usage):
+    if len(args) != n:
+        raise Fail("Aufruf: mc-admin " + usage)
+
+
+def main(argv):
+    if not argv:
+        raise Fail("Aufruf: mc-admin status|whitelist|gamemode|gamerule|say|backup|restore …")
+    cmd, args = argv[0], argv[1:]
+    if cmd == "status":
+        need(args, 0, "status")
+        print(json.dumps(status(), ensure_ascii=False))
+        return
+    if cmd == "whitelist":
+        if args in (["on"], ["off"]):
+            print(rcon("whitelist " + args[0]))
+            return
+        if len(args) not in (2, 3) or args[0] not in ("add", "remove") or (len(args) == 3 and args[2] != "bedrock"):
+            raise Fail("Aufruf: mc-admin whitelist add|remove NAME [bedrock] | whitelist on|off")
+        bedrock = len(args) == 3
+        if not (BEDROCK_NAME if bedrock else JAVA_NAME).match(args[1]):
+            raise Fail("Ungültiger Name: nur Buchstaben, Ziffern und _ (Java 3–16 Zeichen, Bedrock bis 16)")
+        print(rcon(("fwhitelist " if bedrock else "whitelist ") + args[0] + " " + args[1]))
+        return
+    if cmd == "gamemode":
+        need(args, 2, "gamemode " + "|".join(GAMEMODES) + " NAME")
+        if args[0] not in GAMEMODES or not PLAYER.match(args[1]):
+            raise Fail("Ungültiger Spielmodus oder Name")
+        print(rcon("gamemode " + args[0] + " " + args[1]))
+        return
+    if cmd == "gamerule":
+        need(args, 2, "gamerule REGEL WERT")
+        rule, value = args
+        if rule not in GAMERULES:
+            raise Fail("Diese Regel kann die Seite nicht ändern: " + rule)
+        if GAMERULES[rule][0] == "bool" and value not in ("true", "false"):
+            raise Fail("Wert muss true oder false sein")
+        if GAMERULES[rule][0] == "int" and not (value.isdigit() and 0 <= int(value) <= 100):
+            raise Fail("Wert muss eine Zahl von 0 bis 100 sein")
+        print(rcon("gamerule " + rule + " " + value))
+        return
+    if cmd == "say":
+        text = " ".join(args)
+        text = "".join(ch for ch in text if ch.isprintable() and ch != "§").strip()
+        if not text or len(text) > 200:
+            raise Fail("Nachricht: 1 bis 200 Zeichen")
+        print(rcon("say " + text) or "Gesendet.")
+        return
+    if cmd == "backup":
+        need(args, 0, "backup")
+        r = subprocess.run([BACKUP_SCRIPT], capture_output=True, text=True)
+        if r.returncode != 0:
+            raise Fail("Backup fehlgeschlagen: " + (r.stderr or r.stdout).strip()[-500:])
+        print("Backup erstellt.")
+        return
+    if cmd == "restore":
+        need(args, 1, "restore paper-backup-DATUM.tar.gz")
+        restore(args[0])
+        return
+    raise Fail("Unbekannter Befehl: " + cmd)
+
+
+def restore(name):
+    if not BACKUP_NAME.match(name):
+        raise Fail("Ungültiger Dateiname")
+    path = os.path.join(C["BACKUP_DIR"], name)
+    if not os.path.isfile(path):
+        raise Fail("Backup nicht gefunden: " + name)
+    level = props().get("level-name", "world") or "world"
+    with tarfile.open(path) as t:
+        for m in t.getmembers():  # nur relative Pfade ohne "..", keine Links nach draussen
+            if m.name.startswith("/") or ".." in m.name.split("/") or m.issym() and os.path.isabs(m.linkname):
+                raise Fail("Backup enthält unsichere Pfade, abgebrochen")
+        top = {m.name.split("/")[0] for m in t.getmembers()}
+    if level not in top:
+        raise Fail("Das Backup enthält die Welt '" + level + "' nicht, abgebrochen")
+    # 1. aktuellen Stand sichern (das Backup-Script stoppt und startet den Server selbst)
+    r = subprocess.run([BACKUP_SCRIPT], capture_output=True, text=True)
+    if r.returncode != 0:
+        raise Fail("Sicherung des aktuellen Stands fehlgeschlagen, nichts geändert: "
+                   + (r.stderr or r.stdout).strip()[-300:])
+    # 2. zurueckspielen wie in docs/b-crossplay "Backup zurückspielen"
+    svc, lock = C["MC_SERVICE"], C["MC_LOCKFILE"]
+    open(lock, "a").close()
+    try:
+        was_active = subprocess.run([SYSTEMCTL, "is-active", "--quiet", svc]).returncode == 0
+        subprocess.run([SYSTEMCTL, "stop", svc], check=True)
+        for world in (level, level + "_nether", level + "_the_end"):
+            if world in top:
+                shutil.rmtree(os.path.join(C["MC_DIR"], world), ignore_errors=True)
+        subprocess.run(["tar", "-xzf", path, "-C", C["MC_DIR"]], check=True)
+        subprocess.run(["chown", "-R", C["MC_USER"] + ":" + C["MC_USER"], C["MC_DIR"]], check=True)
+        if was_active:
+            subprocess.run([SYSTEMCTL, "start", svc], check=True)
+    finally:
+        try:
+            os.remove(lock)
+        except FileNotFoundError:
+            pass
+    print("Zurückgespielt: " + name + ". Der aktuelle Stand vorher ist als neuestes Backup gesichert.")
+
+
+if __name__ == "__main__":
+    try:
+        main(sys.argv[1:])
+    except Fail as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(1)

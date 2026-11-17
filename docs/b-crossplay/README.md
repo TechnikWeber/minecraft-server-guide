@@ -828,9 +828,22 @@ Danach reicht OPs **`/restart`** (oder `/stop`) im Chat — nach etwa 40 Sekunde
 
 **Auslastung im Spiel:** Paper bringt **spark** mit — `/spark health` (CPU, RAM, TPS), `/spark tps`, `/spark profiler` (Analyse als Weblink). Nur für OPs.
 
-### Weboberfläche für den Notfall: Cockpit (optional)
+### Weboberfläche: Cockpit (optional)
 
-Hängt der Server so, dass auch der Chat nicht mehr geht, hilft eine kleine Weboberfläche auf Basis von [Cockpit](https://cockpit-project.org/) (offizielles Debian/Ubuntu-Paket). Für alle OPs gibt es einen **gemeinsamen Benutzer `mcadmin`**, der nur den Minecraft-Dienst steuern und Logs lesen darf — keine Root-Rechte, kein SSH. Nach dem Login gibt es links die Seite **Minecraft**: Status, Buttons **Neu starten / Starten / Stoppen** (Sicherheitsabfrage per zweitem Klick), Fehler der letzten 24 Stunden und die letzten Log-Zeilen. Daneben zeigt Cockpit unter *Übersicht* CPU, RAM und Platte.
+Eine kleine Weboberfläche auf Basis von [Cockpit](https://cockpit-project.org/) (offizielles Debian/Ubuntu-Paket) — für den Notfall, wenn auch der Chat nicht mehr geht, und für den Alltag ohne SSH und Konsolenbefehle, z. B. für Eltern beim Kinderserver. Für alle OPs gibt es einen **gemeinsamen Benutzer `mcadmin`** — keine Root-Rechte, kein SSH. Nach dem Login gibt es links die Seite **Minecraft**:
+
+- **Status** und Buttons **Neu starten / Starten / Stoppen** (Sicherheitsabfrage per zweitem Klick)
+- **Wer ist online**
+- **Spieler freischalten:** Spielmodus eines Spielers setzen — Abenteuer (nur anschauen), Überleben, Kreativ, Zuschauer ([Stufe 2](#stufe-2--was-darf-man-gamemode-und-freischaltung))
+- **Whitelist:** ein- und ausschalten, Java- und Bedrock-Spieler eintragen und entfernen ([Stufe 1](#stufe-1--wer-darf-rein-whitelist))
+- **Spielregeln** als Schalter: Schlafen, Inventar behalten, PvP, Mob-Griefing, Tag/Nacht, Wetter, Mobs, Fall- und Feuerschaden, TNT — sofort, ohne Neustart
+- **Nachricht an alle** im Chat
+- **Backups:** jetzt eines erstellen, oder eines **zurückspielen** — dabei wird vorher automatisch der aktuelle Stand gesichert (zweiter Klick als Sicherheitsabfrage)
+- Fehler der letzten 24 Stunden und die letzten Log-Zeilen
+
+Daneben zeigt Cockpit unter *Übersicht* CPU, RAM und Platte.
+
+Spieler, Freischalten und Spielregeln laufen über [RCON](#bequemer-konsole-per-rcon). Ist es noch aus, schaltet das Script es ein (nur localhost, Zufallspasswort) — danach den Server **einmal neu starten**. Wer die Alltags-Funktionen nicht will, braucht nichts zu tun: Ohne RCON zeigt die Seite nur den Hinweis und funktioniert wie bisher als Notfall-Steuerung.
 
 Alles Nötige liegt in [`scripts/cockpit/`](../../scripts/cockpit/), eingerichtet wird es mit einem Befehl:
 
@@ -844,20 +857,22 @@ Das Script ist mehrfach ausführbar und gibt am Ende Adresse, Benutzer und das *
 |---|---|
 | Cockpit schlank installieren (nur Übersicht, Dienste, Logs), Port 9090 | – |
 | Benutzer `mcadmin` anlegen, Logs lesen erlauben, SSH verbieten (`DenyUsers mcadmin`) | – |
-| Rechte-Regel: `mcadmin` darf **nur** `minecraft-paper` starten/stoppen/neu starten | `50-mcadmin-minecraft.rules` → `/etc/polkit-1/rules.d/` |
+| Rechte-Regel: `mcadmin` darf **nur** `minecraft-paper` starten/stoppen/neu starten und per `pkexec` **nur** `mc-admin` ausführen | `50-mcadmin-minecraft.rules` → `/etc/polkit-1/rules.d/` |
 | Cockpit-Seite „Minecraft" | `minecraft/` → `/usr/share/cockpit/minecraft/` |
+| Hilfsprogramm für die Alltags-Funktionen: nimmt nur feste Befehle an und prüft Namen, Regeln und Backup-Dateien, bevor etwas an die Konsole geht | `mc-admin` → `/usr/local/sbin/mc-admin` |
+| RCON einschalten, falls aus, und [mc-cmd](#bequemer-konsole-per-rcon) installieren | `../common/mc-cmd` → `/usr/local/bin/mc-cmd` |
 | fail2ban: 5 falsche Passwörter in 10 Min. → 1 Std. Sperre, **nur Port 9090** | `fail2ban-cockpit-filter.conf`, `fail2ban-cockpit-jail.local` |
 | `ufw allow 9090/tcp` (falls ufw aktiv) und Selbsttest | – |
 
 Aufruf: `https://<Server-IP>:9090`. Für OPs von außen im Router **TCP** 9090 freigeben → `https://DEINE-DOMAIN:9090`. Beim ersten Aufruf warnt der Browser vor dem selbst ausgestellten Zertifikat — einmal „trotzdem fortfahren".
 
-> **„Eingeschränkter Zugriff" ist gewollt.** Cockpits Knopf „Administrativen Zugriff einschalten" würde volle Root-Rechte per `sudo` verlangen (Meldung „No such file: sudo") — genau das soll der gemeinsame Zugang nicht haben. Deshalb blendet Cockpit unter *Dienste* auch keine Start/Stopp-Buttons ein; dafür gibt es die Seite **Minecraft**.
+> **„Eingeschränkter Zugriff" ist gewollt.** Cockpits Knopf „Administrativen Zugriff einschalten" würde volle Root-Rechte per `sudo` verlangen (Meldung „No such file: sudo") — genau das soll der gemeinsame Zugang nicht haben. Deshalb blendet Cockpit unter *Dienste* auch keine Start/Stopp-Buttons ein; dafür gibt es die Seite **Minecraft**. Die Alltags-Funktionen gehen über `pkexec /usr/local/sbin/mc-admin`; die polkit-Regel erlaubt `mcadmin` genau dieses eine Programm, der Selbsttest am Ende des Scripts prüft das.
 >
 > Ein über die Seite **gestoppter** Server bleibt nicht lange aus: Der Watchdog startet ihn nach spätestens 5 Minuten wieder. Für längere Pausen per SSH das [Wartungs-Flag](#wartungs-flag) setzen.
 >
 > **Fallen, die das Script vermeidet:** Nicht `ufw limit 9090/tcp` — ein Browser öffnet beim Laden mehr als die erlaubten 6 Verbindungen in 30 Sekunden, die Seite lädt dann von außen nicht. Nicht `banaction = ufw` bei fail2ban — das sperrt die Adresse für **alle** Ports, also auch SSH und Minecraft, bei Spielern aus demselben Heimnetz womöglich die gemeinsame öffentliche IP. Die polkit-Regel braucht Rechte **644**, sonst kann polkit sie nicht lesen. Eigene Cockpit-Seiten brauchen JavaScript und CSS als **eigene Dateien** — Cockpits Content-Security-Policy blockiert alles, was direkt im HTML steht (die Seite bleibt dann bei „wird geladen" hängen). Gesperrte Adresse freigeben: `fail2ban-client set cockpit unbanip <IP>`.
 >
-> **Öffentlich oder nur per VPN?** Sicherer ist es, Port 9090 nicht freizugeben und von unterwegs per VPN (FRITZ!Box-VPN, Tailscale) ins Heimnetz zu gehen. Öffentlich ist es bequemer; langes Passwort, eingeschränkter Benutzer und fail2ban sind dann Pflicht — alle drei richtet das Script ein.
+> **Öffentlich oder nur per VPN?** Sicherer ist es, Port 9090 nicht freizugeben und von unterwegs per VPN (FRITZ!Box-VPN, Tailscale) ins Heimnetz zu gehen. Öffentlich ist es bequemer; langes Passwort, eingeschränkter Benutzer und fail2ban sind dann Pflicht — alle drei richtet das Script ein. Bedenke: Wer das `mcadmin`-Passwort hat, kann auch die Whitelist abschalten und ein altes Backup zurückspielen. Das Passwort also nur an OPs geben, denen du das zutraust.
 
 **Vorlage für die OPs** (Passwort einsetzen):
 

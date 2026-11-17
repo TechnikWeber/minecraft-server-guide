@@ -10,3 +10,15 @@ button:disabled { opacity: .5; cursor: wait; }
 #msg { margin: 8px 0 16px; min-height: 1.2em; }
 h2 { font-size: 1.1em; margin: 24px 0 8px; }
 pre { background: #f5f5f5; padding: 12px; overflow-x: auto; white-space: pre-wrap; font-size: .85em; max-height: 50vh; }
+.hint { color: #555; font-size: .9em; margin: 4px 0 8px; max-width: 48em; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.row button { margin: 0; }
+input, select { font-size: 1em; padding: 8px 10px; border: 1px solid #8a8d90; border-radius: 4px; }
+input[type=checkbox] { padding: 0; width: 18px; height: 18px; vertical-align: middle; }
+.list { list-style: none; padding: 0; margin: 8px 0; max-width: 40em; }
+.list li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #e0e0e0; }
+.list li button { margin: 0; padding: 6px 12px; }
+.rules td { padding: 6px 12px 6px 0; } .rules input[type=number] { width: 5em; }
+#adminmsg { margin: 8px 0 16px; min-height: 1.2em; font-weight: 600; }
+.bad { color: #c9190b; }
+code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; }

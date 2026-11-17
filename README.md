@@ -33,7 +33,7 @@ scripts/
   common/mc-cmd                              Optional: Konsolen-Befehle per RCON (ohne Neustart)
   bedrock/                                   Backup, Update mit Rollback, Watchdog für A
   crossplay/                                 Backup, Update mit Rollback, Watchdog für B (+ optional Chunky-Fortschritt per ntfy)
-  cockpit/                                   Optional: Notfall-Weboberfläche mit Neustart-Buttons (setup-cockpit.sh)
+  cockpit/                                   Optional: Weboberfläche für Notfall und Alltag – Neustart, Spieler freischalten, Whitelist, Spielregeln, Backups (setup-cockpit.sh)
   os/mc-os-update.sh                         OS-Sicherheitsupdates, für beide Wege gleich
 systemd/                                     Service-Units (+ optional restart.conf: Neustart aus dem Chat)
 config/                                      Config-Vorlagen und logrotate
